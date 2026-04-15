@@ -1,58 +1,69 @@
 package com.shelflife.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.shelflife.dto.BookSearchResult;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
+import java.util.stream.StreamSupport;
 
 @Service
 public class GoogleBooksService {
 
+    private static final String GOOGLE_BOOKS_BASE_URL = "https://www.googleapis.com/books/v1/volumes";
+
     private final RestTemplate restTemplate;
-    private final String googleBooksBaseUrl;
     private final String apiKey;
 
     public GoogleBooksService(RestTemplateBuilder restTemplateBuilder,
-                              @Value("${google.books.api.base-url:https://www.googleapis.com/books/v1/volumes}") String googleBooksBaseUrl,
                               @Value("${google.books.api.key:}") String apiKey) {
         this.restTemplate = restTemplateBuilder.build();
-        this.googleBooksBaseUrl = googleBooksBaseUrl;
         this.apiKey = apiKey;
     }
 
     public List<BookSearchResult> searchBooks(String query) {
-        String url = UriComponentsBuilder
-                .fromHttpUrl(googleBooksBaseUrl)
-                .queryParam("q", query)
-                .queryParamIfPresent("key", apiKey == null || apiKey.isBlank() ? java.util.Optional.empty() : java.util.Optional.of(apiKey))
-                .toUriString();
+        String urlTemplate = GOOGLE_BOOKS_BASE_URL + "?q={query}";
+        JsonNode response;
+        Optional<String> maybeApiKey = Optional.ofNullable(apiKey).filter(k -> !k.isBlank());
+        if (maybeApiKey.isPresent()) {
+            urlTemplate += "&key={apiKey}";
+            response = restTemplate.getForObject(urlTemplate, JsonNode.class, query, maybeApiKey.get());
+        } else {
+            response = restTemplate.getForObject(urlTemplate, JsonNode.class, query);
+        }
 
-        Map<String, Object> response = restTemplate.getForObject(url, Map.class);
-        if (response == null || response.get("items") == null) {
+        JsonNode items = response == null ? null : response.get("items");
+        if (items == null || !items.isArray()) {
             return Collections.emptyList();
         }
 
-        List<Map<String, Object>> items = (List<Map<String, Object>>) response.get("items");
         List<BookSearchResult> results = new ArrayList<>();
-
-        for (Map<String, Object> item : items) {
-            Map<String, Object> volumeInfo = (Map<String, Object>) item.getOrDefault("volumeInfo", Collections.emptyMap());
-            Map<String, Object> imageLinks = (Map<String, Object>) volumeInfo.getOrDefault("imageLinks", Collections.emptyMap());
+        for (JsonNode item : items) {
+            JsonNode volumeInfo = item.path("volumeInfo");
             results.add(BookSearchResult.builder()
-                    .googleBookId((String) item.get("id"))
-                    .title((String) volumeInfo.get("title"))
-                    .authors((List<String>) volumeInfo.getOrDefault("authors", Collections.emptyList()))
-                    .coverImageUrl((String) imageLinks.get("thumbnail"))
+                    .googleBookId(item.path("id").asText(null))
+                    .title(volumeInfo.path("title").asText(null))
+                    .authors(extractAuthors(volumeInfo.path("authors")))
+                    .coverImageUrl(volumeInfo.path("imageLinks").path("thumbnail").asText(null))
                     .build());
         }
 
         return results;
+    }
+
+    private List<String> extractAuthors(JsonNode authorsNode) {
+        if (authorsNode == null || !authorsNode.isArray()) {
+            return Collections.emptyList();
+        }
+        return StreamSupport.stream(authorsNode.spliterator(), false)
+                .map(node -> node.asText(null))
+                .filter(author -> author != null && !author.isBlank())
+                .toList();
     }
 }

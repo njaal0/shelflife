@@ -65,5 +65,6 @@ class BookServiceTest {
                 () -> bookService.createBook("user-123", request));
 
         assertEquals(400, ex.getStatusCode().value());
+        assertTrue(ex.getReason().contains("Invalid shelf"));
     }
 }

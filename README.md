@@ -22,9 +22,9 @@ ShelfLife is a Spring Boot backend for a personal bookshelf / reading list app w
 ## Setup
 
 1. Clone the repository.
-2. Update `/home/runner/work/shelflife/shelflife/src/main/resources/application.yml` with:
-   - `spring.data.mongodb.uri`
-   - `google.books.api.key`
+2. Update `src/main/resources/application.yml` with:
+   - `spring.data.mongodb.uri` (or set `MONGODB_URI`)
+   - `google.books.api.key` (or set `GOOGLE_BOOKS_API_KEY`)
    - Firebase settings
    - Allowed CORS origins
 3. (Optional) Enable Firebase JWT verification by setting:

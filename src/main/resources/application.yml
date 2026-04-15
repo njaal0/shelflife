@@ -1,13 +1,12 @@
 spring:
   data:
     mongodb:
-      uri: mongodb+srv://<username>:<password>@<cluster-url>/shelflife?retryWrites=true&w=majority
+      uri: ${MONGODB_URI:mongodb://localhost:27017/shelflife}
 
 google:
   books:
     api:
-      base-url: https://www.googleapis.com/books/v1/volumes
-      key: YOUR_GOOGLE_BOOKS_API_KEY
+      key: ${GOOGLE_BOOKS_API_KEY:}
 
 firebase:
   auth:
