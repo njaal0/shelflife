@@ -1,0 +1,21 @@
+spring:
+  data:
+    mongodb:
+      uri: mongodb+srv://<username>:<password>@<cluster-url>/shelflife?retryWrites=true&w=majority
+
+google:
+  books:
+    api:
+      base-url: https://www.googleapis.com/books/v1/volumes
+      key: YOUR_GOOGLE_BOOKS_API_KEY
+
+firebase:
+  auth:
+    enabled: false
+    project-id: your-firebase-project-id
+    service-account-path: classpath:firebase-service-account.json
+
+app:
+  cors:
+    allowed-origins:
+      - http://localhost:3000

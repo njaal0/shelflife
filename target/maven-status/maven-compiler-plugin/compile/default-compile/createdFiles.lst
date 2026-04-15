@@ -1,0 +1,17 @@
+com/shelflife/repository/UserRepository.class
+com/shelflife/config/SecurityConfig.class
+com/shelflife/model/BookEntry$BookEntryBuilder.class
+com/shelflife/controller/BookController.class
+com/shelflife/service/BookService.class
+com/shelflife/model/BookEntry.class
+com/shelflife/dto/BookSearchResult.class
+com/shelflife/controller/SearchController.class
+com/shelflife/dto/BookRequest$BookRequestBuilder.class
+com/shelflife/model/User$UserBuilder.class
+com/shelflife/model/User.class
+com/shelflife/dto/BookSearchResult$BookSearchResultBuilder.class
+com/shelflife/dto/BookRequest.class
+com/shelflife/filter/FirebaseAuthFilter.class
+com/shelflife/service/GoogleBooksService.class
+com/shelflife/ShelfLifeApplication.class
+com/shelflife/repository/BookEntryRepository.class
