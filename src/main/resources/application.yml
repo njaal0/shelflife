@@ -1,0 +1,20 @@
+spring:
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/shelflife}
+
+google:
+  books:
+    api:
+      key: ${GOOGLE_BOOKS_API_KEY:}
+
+firebase:
+  auth:
+    enabled: false
+    project-id: your-firebase-project-id
+    service-account-path: classpath:firebase-service-account.json
+
+app:
+  cors:
+    allowed-origins:
+      - http://localhost:3000
