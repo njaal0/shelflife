@@ -10,8 +10,8 @@ google:
 
 firebase:
   auth:
-    enabled: false
-    project-id: your-firebase-project-id
+    enabled: true
+    project-id: shelflife-968cf
     service-account-path: classpath:firebase-service-account.json
 
 app:

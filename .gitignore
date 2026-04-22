@@ -29,3 +29,6 @@ replay_pid*
 # Local env overrides
 application-local.yml
 .env
+
+# Ignore Firebase credentials to avoid committing sensitive data
+src/main/resources/firebase-service-account.json
