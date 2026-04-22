@@ -41,7 +41,7 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
                                 List.of(new SimpleGrantedAuthority("ROLE_USER"))
                         );
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-            } catch (Exception ex) {
+            } catch (Exception e) {
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.getWriter().write("Invalid token");
                 return;
