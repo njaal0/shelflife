@@ -67,4 +67,34 @@ class BookServiceTest {
         assertEquals(400, ex.getStatusCode().value());
         assertTrue(ex.getReason().contains("Invalid shelf"));
     }
+
+    @Test
+    void createBook_shouldAcceptMaxRating() {
+        BookRequest request = BookRequest.builder()
+                .googleBookId("book-2")
+                .title("Dice Book")
+                .shelf("finished")
+                .rating(6)
+                .build();
+
+        when(bookEntryRepository.save(any(BookEntry.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        BookEntry created = bookService.createBook("user-123", request);
+        assertEquals(6, created.getRating());
+    }
+
+    @Test
+    void createBook_shouldRejectRatingAboveSix() {
+        BookRequest request = BookRequest.builder()
+                .title("Over rated")
+                .shelf("finished")
+                .rating(7)
+                .build();
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> bookService.createBook("user-123", request));
+
+        assertEquals(400, ex.getStatusCode().value());
+        assertTrue(ex.getReason().contains("Rating must be between 1 and 6"));
+    }
 }

@@ -92,8 +92,8 @@ public class BookService {
     }
 
     private void validateRating(Integer rating) {
-        if (rating != null && (rating < 1 || rating > 5)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Rating must be between 1 and 5");
+        if (rating != null && (rating < 1 || rating > 6)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Rating must be between 1 and 6");
         }
     }
 }

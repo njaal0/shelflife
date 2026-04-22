@@ -16,4 +16,6 @@ public class BookSearchResult {
     private String title;
     private List<String> authors;
     private String coverImageUrl;
+    private String publisher;
+    private String publishedDate;
 }

@@ -27,8 +27,9 @@ public class GoogleBooksService {
         this.apiKey = apiKey;
     }
 
-    public List<BookSearchResult> searchBooks(String query) {
-        String urlTemplate = GOOGLE_BOOKS_BASE_URL + "?q={query}";
+    public List<BookSearchResult> searchBooks(String title, String author, String publisher, String year) {
+        String query = buildQuery(title, author, publisher);
+        String urlTemplate = GOOGLE_BOOKS_BASE_URL + "?q={query}&maxResults=20";
         JsonNode response;
         Optional<String> maybeApiKey = Optional.ofNullable(apiKey).filter(k -> !k.isBlank());
         if (maybeApiKey.isPresent()) {
@@ -46,15 +47,31 @@ public class GoogleBooksService {
         List<BookSearchResult> results = new ArrayList<>();
         for (JsonNode item : items) {
             JsonNode volumeInfo = item.path("volumeInfo");
+            String publishedDate = volumeInfo.path("publishedDate").asText(null);
+
+            if (year != null && !year.isBlank() && (publishedDate == null || !publishedDate.startsWith(year))) {
+                continue;
+            }
+
             results.add(BookSearchResult.builder()
                     .googleBookId(item.path("id").asText(null))
                     .title(volumeInfo.path("title").asText(null))
                     .authors(extractAuthors(volumeInfo.path("authors")))
                     .coverImageUrl(volumeInfo.path("imageLinks").path("thumbnail").asText(null))
+                    .publisher(volumeInfo.path("publisher").asText(null))
+                    .publishedDate(publishedDate)
                     .build());
         }
 
         return results;
+    }
+
+    private String buildQuery(String title, String author, String publisher) {
+        List<String> parts = new ArrayList<>();
+        if (title != null && !title.isBlank()) parts.add("intitle:" + title.trim());
+        if (author != null && !author.isBlank()) parts.add("inauthor:" + author.trim());
+        if (publisher != null && !publisher.isBlank()) parts.add("inpublisher:" + publisher.trim());
+        return String.join("+", parts);
     }
 
     private List<String> extractAuthors(JsonNode authorsNode) {
