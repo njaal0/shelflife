@@ -1,6 +1,6 @@
 # ShelfLife – Personal Bookshelf Spring Boot Application
 
-ShelfLife is a Spring Boot backend for a personal bookshelf / reading list app where users can search books, save titles to shelves, rate books, and keep notes.
+ShelfLife is a Spring Boot backend for a personal bookshelf / reading list app where authenticated users can search books, save titles to shelves, rate books, and keep notes. Each user maintains their own collection with profile management.
 
 ## Tech Stack
 
