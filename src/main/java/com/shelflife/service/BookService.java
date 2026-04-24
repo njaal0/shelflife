@@ -19,22 +19,27 @@ public class BookService {
     private static final Set<String> ALLOWED_SHELVES = Set.of("reading", "finished", "want-to-read");
 
     private final BookEntryRepository bookEntryRepository;
+    private final UserService userService;
 
     public List<BookEntry> getBooksForUser(String userId) {
+        userService.assertUserExists(userId);
         return bookEntryRepository.findByUserId(userId);
     }
 
     public List<BookEntry> getBooksForUserByShelf(String userId, String shelf) {
+        userService.assertUserExists(userId);
         validateShelf(shelf);
         return bookEntryRepository.findByUserIdAndShelf(userId, shelf);
     }
 
     public BookEntry getBookForUser(String id, String userId) {
+        userService.assertUserExists(userId);
         return bookEntryRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Book entry not found"));
     }
 
     public BookEntry createBook(String userId, BookRequest request) {
+        userService.assertUserExists(userId);
         validateShelf(request.getShelf());
         validateRating(request.getRating());
 
@@ -56,6 +61,7 @@ public class BookService {
     }
 
     public BookEntry updateBook(String id, String userId, BookRequest request) {
+        userService.assertUserExists(userId);
         BookEntry existing = getBookForUser(id, userId);
 
         if (request.getShelf() != null) {
@@ -80,6 +86,7 @@ public class BookService {
     }
 
     public void deleteBook(String id, String userId) {
+        userService.assertUserExists(userId);
         BookEntry existing = getBookForUser(id, userId);
         bookEntryRepository.delete(existing);
     }

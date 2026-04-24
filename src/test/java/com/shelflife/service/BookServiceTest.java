@@ -14,6 +14,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -21,6 +22,9 @@ class BookServiceTest {
 
     @Mock
     private BookEntryRepository bookEntryRepository;
+
+        @Mock
+        private UserService userService;
 
     @InjectMocks
     private BookService bookService;
@@ -42,6 +46,7 @@ class BookServiceTest {
         assertEquals("book-1", created.getGoogleBookId());
         assertEquals("reading", created.getShelf());
         assertNotNull(created.getCreatedAt());
+                verify(userService).assertUserExists("user-123");
     }
 
     @Test
@@ -52,6 +57,7 @@ class BookServiceTest {
                 () -> bookService.getBookForUser("missing", "user-123"));
 
         assertEquals(404, ex.getStatusCode().value());
+        verify(userService).assertUserExists("user-123");
     }
 
     @Test
@@ -66,6 +72,7 @@ class BookServiceTest {
 
         assertEquals(400, ex.getStatusCode().value());
         assertTrue(ex.getReason().contains("Invalid shelf"));
+        verify(userService).assertUserExists("user-123");
     }
 
     @Test
@@ -81,6 +88,7 @@ class BookServiceTest {
 
         BookEntry created = bookService.createBook("user-123", request);
         assertEquals(6, created.getRating());
+        verify(userService).assertUserExists("user-123");
     }
 
     @Test
@@ -96,5 +104,6 @@ class BookServiceTest {
 
         assertEquals(400, ex.getStatusCode().value());
         assertTrue(ex.getReason().contains("Rating must be between 1 and 6"));
+        verify(userService).assertUserExists("user-123");
     }
 }

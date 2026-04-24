@@ -12,4 +12,8 @@ public interface BookEntryRepository extends MongoRepository<BookEntry, String> 
     List<BookEntry> findByUserIdAndShelf(String userId, String shelf);
 
     Optional<BookEntry> findByIdAndUserId(String id, String userId);
+
+    long deleteByUserId(String userId);
+
+    long countByUserId(String userId);
 }

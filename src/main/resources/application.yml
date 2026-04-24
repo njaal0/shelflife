@@ -1,4 +1,6 @@
 spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
   data:
     mongodb:
       uri: ${MONGODB_URI:mongodb://localhost:27017/shelflife}
@@ -18,3 +20,6 @@ app:
   cors:
     allowed-origins:
       - http://localhost:3000
+  users:
+    email-index-initializer:
+      enabled: ${USER_EMAIL_INDEX_INITIALIZER_ENABLED:true}
