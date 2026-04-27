@@ -1,6 +1,6 @@
 # ShelfLife – Personal Bookshelf Spring Boot Application
 
-ShelfLife is a Spring Boot backend for a personal bookshelf and reading planner app. Search for books, organize your reading across three shelves (want to read, reading, have read), take reading tests to plan your progress, and maintain your personal reading profile.
+ShelfLife is a Spring Boot backend for a personal bookshelf and reading planner app. Search for books, organize your reading across three shelves (want to read, reading, have read), plan reading progress (reading tests are a future phase), and maintain your personal reading profile.
 
 ## Tech Stack
 
@@ -13,59 +13,41 @@ ShelfLife is a Spring Boot backend for a personal bookshelf and reading planner 
 
 ## Features
 
-- **Book Search**: Search for books using Google Books API
+- **Book Search**: Public Google Books search by title, author, publisher, year, or ISBN
 - **Reading Shelves**: Organize books across three shelves — "Want to Read", "Reading", and "Have Read"
-- **Reading Plans**: Take reading tests to assess and plan your reading progress
+- **Reading Plans**: Planned for a future phase (not implemented yet)
 - **User Profiles**: Authenticated user accounts with profile management
 - **Reading Notes**: Add notes and ratings to tracked books
-
-## Prerequisites
-
-- Java 17+
-- Maven 3.9+
-- MongoDB Atlas account (free tier)
-- Firebase project (for production JWT validation)
-- Google Books API key
-
-## Setup
-
-1. Clone the repository.
-2. Update `src/main/resources/application.yml` with:
-   - `spring.data.mongodb.uri` (or set `MONGODB_URI`)
-   - `google.books.api.key` (or set `GOOGLE_BOOKS_API_KEY`)
-   - Firebase settings
-   - Allowed CORS origins
-3. (Optional) Enable Firebase JWT verification by setting:
-   - `firebase.auth.enabled: true`
-   - Firebase Admin SDK credentials initialization in your runtime environment.
-
-## Run Locally
-
-```bash
-mvn spring-boot:run
-```
-
-Default server URL: `http://localhost:8080`
 
 ## API Endpoints
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/books/search?q={query}` | Proxy search against Google Books API |
+| `GET` | `/api/books/search` | Public Google Books search (query params: `title`, `author`, `publisher`, `year`, `isbn`) |
 | `GET` | `/api/shelves` | Get all books for authenticated user |
 | `GET` | `/api/shelves/{shelf}` | Get books for a specific shelf |
 | `POST` | `/api/books` | Save a book to a shelf |
 | `PUT` | `/api/books/{id}` | Update shelf/rating/notes/dates |
 | `DELETE` | `/api/books/{id}` | Remove a saved book |
 | `GET` | `/api/books/{id}` | Get a single saved book |
+| `GET` | `/api/users/me` | Get authenticated user's profile |
+| `PUT` | `/api/users/me` | Update authenticated user's profile |
+| `DELETE` | `/api/users/me` | Delete authenticated user's account and books |
+
+### Search Notes
+
+- At least one search parameter is required.
+- If `isbn` is provided, the backend uses ISBN-only search mode.
+- ISBN accepts ISBN-10 or ISBN-13 formats (hyphens/spaces allowed).
 
 ### Authentication
 
 - Search endpoint is public.
 - Other `/api/**` endpoints require `Authorization: Bearer <token>`.
+- Protected endpoints return `401 Unauthorized` for missing, malformed, empty, or invalid bearer tokens.
 - Current filter supports:
-  - Placeholder validation mode (`firebase.auth.enabled=false`): token string is used as principal.
-  - Firebase validation mode (`firebase.auth.enabled=true`): token validated through Firebase Admin SDK.
+   - Local development mode (`spring.profiles.active=local` and `firebase.auth.enabled=false`): token string is used as principal.
+   - Firebase validation mode (`firebase.auth.enabled=true`): token validated through Firebase Admin SDK.
 
 ## Project Structure
 
@@ -77,7 +59,8 @@ src/main/java/com/shelflife/
 │   └── FirebaseAuthFilter.java
 ├── controller/
 │   ├── BookController.java
-│   └── SearchController.java
+│   ├── SearchController.java
+│   └── UserController.java
 ├── model/
 │   ├── BookEntry.java
 │   └── User.java
@@ -92,27 +75,3 @@ src/main/java/com/shelflife/
 │   └── BookRequest.java
 └── ShelfLifeApplication.java
 ```
-
-## MongoDB Atlas Notes
-
-- Create a free cluster.
-- Add your current IP to the network allowlist.
-- Create a database user and use its credentials in `spring.data.mongodb.uri`.
-
-## Firebase Notes
-
-- Create a Firebase project and enable Authentication.
-- Generate a service account key for backend verification.
-- Initialize Firebase Admin SDK in your runtime before enabling strict verification.
-
-## Google Books API Notes
-
-- Create an API key in Google Cloud Console.
-- Add it to `google.books.api.key`.
-
-## Deployment Notes (AWS Elastic Beanstalk)
-
-1. Build: `mvn clean package`
-2. Deploy generated JAR (`target/*.jar`) to Elastic Beanstalk Java platform.
-3. Configure environment variables for MongoDB URI, Google API key, Firebase settings.
-4. Update CORS origins to your deployed frontend domain.
