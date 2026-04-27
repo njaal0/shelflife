@@ -24,6 +24,10 @@ import java.util.List;
 @Component
 public class FirebaseAuthFilter extends OncePerRequestFilter {
 
+    private static final String AUTHORIZATION_HEADER = "Authorization";
+    private static final String BEARER_PREFIX = "Bearer ";
+    private static final String PUBLIC_SEARCH_PATH = "/api/books/search";
+
     private final boolean firebaseAuthEnabled;
     private final UserService userService;
 
@@ -44,28 +48,45 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String jwt = authHeader.substring(7);
-            try {
-                ResolvedPrincipal principal = validateAndResolvePrincipal(jwt);
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                principal.userId(),
-                                null,
-                                List.of(new SimpleGrantedAuthority("ROLE_USER"))
-                        );
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-
-                userService.ensureUserExists(principal.userId(), principal.email(), principal.displayName());
-            } catch (Exception e) {
-                SecurityContextHolder.clearContext();
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write("Invalid token");
-                log.warn("Authentication rejected: {}", e.getMessage());
-                return;
-            }
+        if (!requiresAuthentication(request)) {
+            filterChain.doFilter(request, response);
+            return;
         }
+
+        String authHeader = request.getHeader(AUTHORIZATION_HEADER);
+        if (authHeader == null || authHeader.isBlank()) {
+            rejectUnauthorized(response, "Missing Authorization header");
+            return;
+        }
+
+        if (!authHeader.startsWith(BEARER_PREFIX)) {
+            rejectUnauthorized(response, "Invalid Authorization header");
+            return;
+        }
+
+        String jwt = authHeader.substring(BEARER_PREFIX.length()).trim();
+        if (jwt.isEmpty()) {
+            rejectUnauthorized(response, "Missing bearer token");
+            return;
+        }
+
+        try {
+            ResolvedPrincipal principal = validateAndResolvePrincipal(jwt);
+            UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(
+                            principal.userId(),
+                            null,
+                            List.of(new SimpleGrantedAuthority("ROLE_USER"))
+                    );
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+
+            userService.ensureUserExists(principal.userId(), principal.email(), principal.displayName());
+        } catch (Exception e) {
+            log.warn("Authentication rejected: {}", e.getMessage());
+            rejectUnauthorized(response, "Invalid token");
+            return;
+        }
+
         filterChain.doFilter(request, response);
     }
 
@@ -80,6 +101,28 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
     private boolean isLocalProfile(Environment environment) {
         return Arrays.stream(environment.getActiveProfiles())
                 .anyMatch("local"::equalsIgnoreCase);
+    }
+
+    private boolean requiresAuthentication(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        if (path == null || !path.startsWith("/api/")) {
+            return false;
+        }
+
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return false;
+        }
+
+        return !(
+                "GET".equalsIgnoreCase(request.getMethod())
+                        && PUBLIC_SEARCH_PATH.equals(path)
+        );
+    }
+
+    private void rejectUnauthorized(HttpServletResponse response, String message) throws IOException {
+        SecurityContextHolder.clearContext();
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.getWriter().write(message);
     }
 
     protected record ResolvedPrincipal(String userId, String email, String displayName) {
