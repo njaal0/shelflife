@@ -11,12 +11,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 import java.util.stream.StreamSupport;
 
 @Service
 public class GoogleBooksService {
 
     private static final String GOOGLE_BOOKS_BASE_URL = "https://www.googleapis.com/books/v1/volumes";
+    private static final Pattern NON_ISBN_CHARACTERS = Pattern.compile("[^0-9Xx]");
 
     private final RestTemplate restTemplate;
     private final String apiKey;
@@ -27,8 +29,12 @@ public class GoogleBooksService {
         this.apiKey = apiKey;
     }
 
-    public List<BookSearchResult> searchBooks(String title, String author, String publisher, String year) {
-        String query = buildQuery(title, author, publisher);
+    public List<BookSearchResult> searchBooks(String title,
+                                              String author,
+                                              String publisher,
+                                              String year,
+                                              String isbn) {
+        String query = buildQuery(title, author, publisher, isbn);
         String urlTemplate = GOOGLE_BOOKS_BASE_URL + "?q={query}&maxResults=20";
         JsonNode response;
         Optional<String> maybeApiKey = Optional.ofNullable(apiKey).filter(k -> !k.isBlank());
@@ -45,16 +51,18 @@ public class GoogleBooksService {
         }
 
         List<BookSearchResult> results = new ArrayList<>();
+        boolean filterByYear = year != null && !year.isBlank() && (isbn == null || isbn.isBlank());
         for (JsonNode item : items) {
             JsonNode volumeInfo = item.path("volumeInfo");
             String publishedDate = volumeInfo.path("publishedDate").asText(null);
 
-            if (year != null && !year.isBlank() && (publishedDate == null || !publishedDate.startsWith(year))) {
+            if (filterByYear && (publishedDate == null || !publishedDate.startsWith(year))) {
                 continue;
             }
 
             results.add(BookSearchResult.builder()
                     .googleBookId(item.path("id").asText(null))
+                    .isbn(extractIsbn(volumeInfo.path("industryIdentifiers")))
                     .title(volumeInfo.path("title").asText(null))
                     .authors(extractAuthors(volumeInfo.path("authors")))
                     .coverImageUrl(volumeInfo.path("imageLinks").path("thumbnail").asText(null))
@@ -66,12 +74,54 @@ public class GoogleBooksService {
         return results;
     }
 
-    private String buildQuery(String title, String author, String publisher) {
+    private String buildQuery(String title, String author, String publisher, String isbn) {
+        if (isbn != null && !isbn.isBlank()) {
+            return "isbn:" + isbn.trim();
+        }
+
         List<String> parts = new ArrayList<>();
         if (title != null && !title.isBlank()) parts.add("intitle:" + title.trim());
         if (author != null && !author.isBlank()) parts.add("inauthor:" + author.trim());
         if (publisher != null && !publisher.isBlank()) parts.add("inpublisher:" + publisher.trim());
         return String.join("+", parts);
+    }
+
+    private String extractIsbn(JsonNode identifiersNode) {
+        if (identifiersNode == null || !identifiersNode.isArray()) {
+            return null;
+        }
+
+        String isbn10 = null;
+        for (JsonNode identifierNode : identifiersNode) {
+            String type = identifierNode.path("type").asText("");
+            String identifier = normalizeIdentifier(identifierNode.path("identifier").asText(null));
+            if (identifier == null) {
+                continue;
+            }
+
+            if ("ISBN_13".equalsIgnoreCase(type)) {
+                return identifier;
+            }
+
+            if ("ISBN_10".equalsIgnoreCase(type) && isbn10 == null) {
+                isbn10 = identifier;
+            }
+        }
+
+        return isbn10;
+    }
+
+    private String normalizeIdentifier(String identifier) {
+        if (identifier == null || identifier.isBlank()) {
+            return null;
+        }
+
+        String cleaned = NON_ISBN_CHARACTERS.matcher(identifier).replaceAll("").toUpperCase();
+        if (cleaned.length() == 10 || cleaned.length() == 13) {
+            return cleaned;
+        }
+
+        return null;
     }
 
     private List<String> extractAuthors(JsonNode authorsNode) {
