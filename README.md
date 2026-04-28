@@ -19,6 +19,10 @@ ShelfLife is a Spring Boot backend for a personal bookshelf and reading planner 
 - **User Profiles**: Authenticated user accounts with profile management
 - **Reading Notes**: Add notes and ratings to tracked books
 
+## Future Design Notes
+
+- Reading test backend design (future phase): [docs/reading-test-backend-design.md](docs/reading-test-backend-design.md)
+
 ## API Endpoints
 
 | Method | Endpoint | Description |

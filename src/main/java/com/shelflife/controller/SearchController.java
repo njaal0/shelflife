@@ -13,6 +13,9 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.regex.Pattern;
 
+/**
+ * Exposes public book-search endpoints backed by Google Books.
+ */
 @RestController
 @RequestMapping("/api/books")
 @RequiredArgsConstructor
@@ -23,6 +26,19 @@ public class SearchController {
 
     private final GoogleBooksService googleBooksService;
 
+    /**
+     * Searches books by metadata or ISBN.
+     *
+     * <p>At least one parameter is required. When {@code isbn} is provided, this endpoint
+     * runs in ISBN-only mode and ignores title/author/publisher/year parameters.
+     *
+     * @param title optional book title filter
+     * @param author optional author filter
+     * @param publisher optional publisher filter
+     * @param year optional publication year filter
+     * @param isbn optional ISBN-10/ISBN-13 filter (hyphens/spaces allowed)
+     * @return list of matching books from Google Books
+     */
     @GetMapping("/search")
     public List<BookSearchResult> searchBooks(
             @RequestParam(required = false) String title,

@@ -14,6 +14,9 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.StreamSupport;
 
+/**
+ * Integrates with Google Books API and maps external volume responses into local DTOs.
+ */
 @Service
 public class GoogleBooksService {
 
@@ -29,6 +32,19 @@ public class GoogleBooksService {
         this.apiKey = apiKey;
     }
 
+    /**
+     * Searches Google Books by metadata fields or ISBN.
+     *
+     * <p>When {@code isbn} is provided, the query is executed as ISBN-only mode and year
+     * filtering is skipped.
+     *
+     * @param title optional title filter
+     * @param author optional author filter
+     * @param publisher optional publisher filter
+     * @param year optional publication year filter
+     * @param isbn optional normalized ISBN value
+     * @return mapped search results
+     */
     public List<BookSearchResult> searchBooks(String title,
                                               String author,
                                               String publisher,
