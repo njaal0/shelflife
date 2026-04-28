@@ -123,6 +123,18 @@ class BookServiceTest {
         verify(userService).assertUserExists("user-123");
     }
 
+        @Test
+        void getBookForUser_shouldNotExposeBookOwnedByAnotherUser() {
+                when(bookEntryRepository.findByIdAndUserId("book-1", "other-user")).thenReturn(Optional.empty());
+
+                ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                                () -> bookService.getBookForUser("book-1", "other-user"));
+
+                assertEquals(404, ex.getStatusCode().value());
+                verify(userService).assertUserExists("other-user");
+                verify(bookEntryRepository).findByIdAndUserId("book-1", "other-user");
+        }
+
     @Test
     void createBook_shouldValidateShelf() {
         BookRequest request = BookRequest.builder()

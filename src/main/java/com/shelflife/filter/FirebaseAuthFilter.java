@@ -1,13 +1,16 @@
 package com.shelflife.filter;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseToken;
+import com.shelflife.dto.ErrorResponse;
 import com.shelflife.service.UserService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -17,6 +20,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
@@ -30,12 +34,15 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
 
     private final boolean firebaseAuthEnabled;
     private final UserService userService;
+    private final ObjectMapper objectMapper;
 
     public FirebaseAuthFilter(@Value("${firebase.auth.enabled:false}") boolean firebaseAuthEnabled,
                               UserService userService,
+                              ObjectMapper objectMapper,
                               Environment environment) {
         this.firebaseAuthEnabled = firebaseAuthEnabled;
         this.userService = userService;
+        this.objectMapper = objectMapper;
 
         if (!firebaseAuthEnabled && !isLocalProfile(environment)) {
             throw new IllegalStateException(
@@ -122,7 +129,16 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
     private void rejectUnauthorized(HttpServletResponse response, String message) throws IOException {
         SecurityContextHolder.clearContext();
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.getWriter().write(message);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
+
+        ErrorResponse payload = ErrorResponse.builder()
+                .code("UNAUTHORIZED")
+                .message(message)
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        response.getWriter().write(objectMapper.writeValueAsString(payload));
     }
 
     protected record ResolvedPrincipal(String userId, String email, String displayName) {

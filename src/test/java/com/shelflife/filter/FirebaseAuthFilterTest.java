@@ -1,5 +1,7 @@
 package com.shelflife.filter;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shelflife.service.UserService;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,12 +16,15 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class FirebaseAuthFilterTest {
+
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Mock
     private UserService userService;
@@ -35,6 +40,7 @@ class FirebaseAuthFilterTest {
     @Test
     void doFilterInternal_shouldAuthenticateAndAutoCreateUserInDevMode() throws Exception {
         FirebaseAuthFilter filter = new FirebaseAuthFilter(false, userService,
+            objectMapper,
             new MockEnvironment().withProperty("spring.profiles.active", "local"));
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRequestURI("/api/shelves");
@@ -50,6 +56,7 @@ class FirebaseAuthFilterTest {
     @Test
     void doFilterInternal_shouldReturnUnauthorizedOnTokenFailure() throws Exception {
         FirebaseAuthFilter filter = new FirebaseAuthFilter(false, userService,
+                objectMapper,
                 new MockEnvironment().withProperty("spring.profiles.active", "local")) {
             @Override
             protected ResolvedPrincipal validateAndResolvePrincipal(String jwt) throws Exception {
@@ -65,6 +72,7 @@ class FirebaseAuthFilterTest {
         filter.doFilterInternal(request, response, filterChain);
 
         assertEquals(401, response.getStatus());
+        assertUnauthorizedPayload(response, "Invalid token");
         assertNull(SecurityContextHolder.getContext().getAuthentication());
     }
 
@@ -74,6 +82,7 @@ class FirebaseAuthFilterTest {
                 .ensureUserExists("dev-user-2", null, null);
 
         FirebaseAuthFilter filter = new FirebaseAuthFilter(false, userService,
+            objectMapper,
                 new MockEnvironment().withProperty("spring.profiles.active", "local"));
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRequestURI("/api/shelves");
@@ -83,12 +92,14 @@ class FirebaseAuthFilterTest {
         filter.doFilterInternal(request, response, filterChain);
 
         assertEquals(401, response.getStatus());
+        assertUnauthorizedPayload(response, "Invalid token");
         assertNull(SecurityContextHolder.getContext().getAuthentication());
     }
 
     @Test
     void doFilterInternal_shouldReturnUnauthorizedWhenAuthorizationHeaderMissing() throws Exception {
         FirebaseAuthFilter filter = new FirebaseAuthFilter(false, userService,
+                objectMapper,
                 new MockEnvironment().withProperty("spring.profiles.active", "local"));
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRequestURI("/api/shelves");
@@ -97,13 +108,14 @@ class FirebaseAuthFilterTest {
         filter.doFilterInternal(request, response, filterChain);
 
         assertEquals(401, response.getStatus());
-        assertEquals("Missing Authorization header", response.getContentAsString());
+        assertUnauthorizedPayload(response, "Missing Authorization header");
         verifyNoInteractions(filterChain);
     }
 
     @Test
     void doFilterInternal_shouldReturnUnauthorizedWhenAuthorizationHeaderMalformed() throws Exception {
         FirebaseAuthFilter filter = new FirebaseAuthFilter(false, userService,
+                objectMapper,
                 new MockEnvironment().withProperty("spring.profiles.active", "local"));
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRequestURI("/api/shelves");
@@ -113,13 +125,14 @@ class FirebaseAuthFilterTest {
         filter.doFilterInternal(request, response, filterChain);
 
         assertEquals(401, response.getStatus());
-        assertEquals("Invalid Authorization header", response.getContentAsString());
+        assertUnauthorizedPayload(response, "Invalid Authorization header");
         verifyNoInteractions(filterChain);
     }
 
     @Test
     void doFilterInternal_shouldReturnUnauthorizedWhenBearerTokenMissing() throws Exception {
         FirebaseAuthFilter filter = new FirebaseAuthFilter(false, userService,
+                objectMapper,
                 new MockEnvironment().withProperty("spring.profiles.active", "local"));
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRequestURI("/api/shelves");
@@ -129,13 +142,14 @@ class FirebaseAuthFilterTest {
         filter.doFilterInternal(request, response, filterChain);
 
         assertEquals(401, response.getStatus());
-        assertEquals("Missing bearer token", response.getContentAsString());
+        assertUnauthorizedPayload(response, "Missing bearer token");
         verifyNoInteractions(filterChain);
     }
 
     @Test
     void doFilterInternal_shouldAllowAnonymousSearchEndpoint() throws Exception {
         FirebaseAuthFilter filter = new FirebaseAuthFilter(false, userService,
+                objectMapper,
                 new MockEnvironment().withProperty("spring.profiles.active", "local"));
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRequestURI("/api/books/search");
@@ -153,9 +167,20 @@ class FirebaseAuthFilterTest {
         IllegalStateException ex = org.junit.jupiter.api.Assertions.assertThrows(
                 IllegalStateException.class,
                 () -> new FirebaseAuthFilter(false, userService,
+                objectMapper,
                         new MockEnvironment().withProperty("spring.profiles.active", "prod"))
         );
 
         assertEquals("firebase.auth.enabled=false is only allowed under the local profile", ex.getMessage());
+    }
+
+    private void assertUnauthorizedPayload(MockHttpServletResponse response, String expectedMessage) throws Exception {
+        String contentType = response.getContentType();
+        assertTrue(contentType != null && contentType.startsWith("application/json"));
+
+        JsonNode node = objectMapper.readTree(response.getContentAsString());
+        assertEquals("UNAUTHORIZED", node.path("code").asText());
+        assertEquals(expectedMessage, node.path("message").asText());
+        assertEquals(false, node.path("timestamp").isMissingNode());
     }
 }
