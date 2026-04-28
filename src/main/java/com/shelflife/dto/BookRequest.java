@@ -14,6 +14,7 @@ import java.util.List;
 @AllArgsConstructor
 public class BookRequest {
     private String googleBookId;
+    private String isbn;
     private String title;
     private List<String> authors;
     private String coverImageUrl;

@@ -14,6 +14,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,6 +34,7 @@ class BookServiceTest {
     void createBook_shouldCreateBookEntry() {
         BookRequest request = BookRequest.builder()
                 .googleBookId("book-1")
+                                .isbn("978-0134685991")
                 .title("Test Book")
                 .shelf("reading")
                 .rating(4)
@@ -44,9 +46,70 @@ class BookServiceTest {
 
         assertEquals("user-123", created.getUserId());
         assertEquals("book-1", created.getGoogleBookId());
+        assertEquals("9780134685991", created.getIsbn());
         assertEquals("reading", created.getShelf());
         assertNotNull(created.getCreatedAt());
-                verify(userService).assertUserExists("user-123");
+        verify(userService).assertUserExists("user-123");
+    }
+
+    @Test
+    void updateBook_shouldUpdateIsbnWhenProvided() {
+        BookEntry existing = BookEntry.builder()
+                .id("book-9")
+                .userId("user-123")
+                .isbn("9780321356680")
+                .shelf("reading")
+                .build();
+
+        BookRequest request = BookRequest.builder()
+                .isbn("978-0132350884")
+                .build();
+
+        when(bookEntryRepository.findByIdAndUserId("book-9", "user-123")).thenReturn(Optional.of(existing));
+        when(bookEntryRepository.save(any(BookEntry.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        BookEntry updated = bookService.updateBook("book-9", "user-123", request);
+
+        assertEquals("9780132350884", updated.getIsbn());
+        verify(userService, times(2)).assertUserExists("user-123");
+    }
+
+    @Test
+    void createBook_shouldRejectInvalidIsbn() {
+        BookRequest request = BookRequest.builder()
+                .title("Bad isbn")
+                .shelf("reading")
+                .isbn("invalid")
+                .build();
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> bookService.createBook("user-123", request));
+
+        assertEquals(400, ex.getStatusCode().value());
+        assertEquals("Invalid isbn format. Use ISBN-10 or ISBN-13.", ex.getReason());
+        verify(userService).assertUserExists("user-123");
+    }
+
+    @Test
+    void updateBook_shouldClearIsbnWhenBlank() {
+        BookEntry existing = BookEntry.builder()
+                .id("book-10")
+                .userId("user-123")
+                .isbn("9780132350884")
+                .shelf("reading")
+                .build();
+
+        BookRequest request = BookRequest.builder()
+                .isbn("   ")
+                .build();
+
+        when(bookEntryRepository.findByIdAndUserId("book-10", "user-123")).thenReturn(Optional.of(existing));
+        when(bookEntryRepository.save(any(BookEntry.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        BookEntry updated = bookService.updateBook("book-10", "user-123", request);
+
+        assertNull(updated.getIsbn());
+        verify(userService, times(2)).assertUserExists("user-123");
     }
 
     @Test

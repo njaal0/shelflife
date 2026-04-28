@@ -10,6 +10,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.Set;
 
 @Service
@@ -17,6 +18,8 @@ import java.util.Set;
 public class BookService {
 
     private static final Set<String> ALLOWED_SHELVES = Set.of("reading", "finished", "want-to-read");
+    private static final Pattern ISBN_10_PATTERN = Pattern.compile("^[0-9]{9}[0-9Xx]$");
+    private static final Pattern ISBN_13_PATTERN = Pattern.compile("^[0-9]{13}$");
 
     private final BookEntryRepository bookEntryRepository;
     private final UserService userService;
@@ -46,6 +49,7 @@ public class BookService {
         BookEntry bookEntry = BookEntry.builder()
                 .userId(userId)
                 .googleBookId(request.getGoogleBookId())
+                .isbn(normalizeIsbn(request.getIsbn()))
                 .title(request.getTitle())
                 .authors(request.getAuthors())
                 .coverImageUrl(request.getCoverImageUrl())
@@ -75,6 +79,9 @@ public class BookService {
         if (request.getNotes() != null) {
             existing.setNotes(request.getNotes());
         }
+        if (request.getIsbn() != null) {
+            existing.setIsbn(normalizeIsbn(request.getIsbn()));
+        }
         if (request.getStartedAt() != null) {
             existing.setStartedAt(request.getStartedAt());
         }
@@ -102,5 +109,19 @@ public class BookService {
         if (rating != null && (rating < 1 || rating > 6)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Rating must be between 1 and 6");
         }
+    }
+
+    private String normalizeIsbn(String isbn) {
+        if (isbn == null || isbn.isBlank()) {
+            return null;
+        }
+
+        String cleaned = isbn.replaceAll("[\\s-]", "").toUpperCase();
+        if (ISBN_10_PATTERN.matcher(cleaned).matches() || ISBN_13_PATTERN.matcher(cleaned).matches()) {
+            return cleaned;
+        }
+
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Invalid isbn format. Use ISBN-10 or ISBN-13.");
     }
 }
