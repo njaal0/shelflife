@@ -174,6 +174,18 @@ class FirebaseAuthFilterTest {
         assertEquals("firebase.auth.enabled=false is only allowed under the local profile", ex.getMessage());
     }
 
+    @Test
+    void constructor_shouldRejectMixedLocalAndNonLocalProfilesWhenFirebaseDisabled() {
+        IllegalStateException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalStateException.class,
+                () -> new FirebaseAuthFilter(false, userService,
+                        objectMapper,
+                        new MockEnvironment().withProperty("spring.profiles.active", "local,prod"))
+        );
+
+        assertEquals("The local profile must not be combined with non-local profiles", ex.getMessage());
+    }
+
     private void assertUnauthorizedPayload(MockHttpServletResponse response, String expectedMessage) throws Exception {
         String contentType = response.getContentType();
         assertTrue(contentType != null && contentType.startsWith("application/json"));

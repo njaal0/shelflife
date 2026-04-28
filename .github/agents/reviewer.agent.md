@@ -2,7 +2,7 @@
 name: reviewer
 description: This agent is to be used to review the developer agents' code changes and provide feedback on how to improve the code quality, readability, and maintainability. The reviewer agent should also check for adherence to coding standards and best practices, as well as ensure that the code is well-documented and tested.
 argument-hint: "Please review the following code changes: [describe the code changes you want reviewed]"
-tools: ['vscode', 'read', 'search', 'web', 'todo'] # specify the tools this agent can use. If not set, all enabled tools are allowed.
+tools: [vscode/getProjectSetupInfo, vscode/installExtension, vscode/memory, vscode/newWorkspace, vscode/resolveMemoryFileUri, vscode/runCommand, vscode/vscodeAPI, vscode/extensions, vscode/askQuestions, execute/runNotebookCell, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/createAndRunTask, execute/runInTerminal, execute/runTests, read/getNotebookSummary, read/problems, read/readFile, read/viewImage, read/readNotebookCellOutput, read/terminalSelection, read/terminalLastCommand, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, web/fetch, web/githubRepo, todo] # specify the tools this agent can use. If not set, all enabled tools are allowed.
 ---
 
 <!-- Tip: Use /create-agent in chat to generate content with agent assistance -->

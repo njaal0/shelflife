@@ -44,7 +44,7 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
         this.userService = userService;
         this.objectMapper = objectMapper;
 
-        if (!firebaseAuthEnabled && !isLocalProfile(environment)) {
+        if (!firebaseAuthEnabled && !isStrictLocalProfile(environment)) {
             throw new IllegalStateException(
                     "firebase.auth.enabled=false is only allowed under the local profile"
             );
@@ -105,9 +105,18 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
         return new ResolvedPrincipal(jwt, null, null);
     }
 
-    private boolean isLocalProfile(Environment environment) {
-        return Arrays.stream(environment.getActiveProfiles())
+    private boolean isStrictLocalProfile(Environment environment) {
+        String[] activeProfiles = environment.getActiveProfiles();
+        boolean containsLocal = Arrays.stream(activeProfiles)
                 .anyMatch("local"::equalsIgnoreCase);
+
+        if (containsLocal && activeProfiles.length > 1) {
+            throw new IllegalStateException(
+                    "The local profile must not be combined with non-local profiles"
+            );
+        }
+
+        return containsLocal;
     }
 
     private boolean requiresAuthentication(HttpServletRequest request) {

@@ -1,6 +1,4 @@
 spring:
-  profiles:
-    active: ${SPRING_PROFILES_ACTIVE:local}
   data:
     mongodb:
       uri: ${MONGODB_URI:mongodb://localhost:27017/shelflife}
@@ -12,14 +10,13 @@ google:
 
 firebase:
   auth:
-    enabled: true
-    project-id: shelflife-968cf
-    service-account-path: classpath:firebase-service-account.json
+    enabled: ${FIREBASE_AUTH_ENABLED:true}
+    project-id: ${FIREBASE_PROJECT_ID:shelflife-968cf}
+    service-account-path: ${FIREBASE_SERVICE_ACCOUNT_PATH:classpath:firebase-service-account.json}
 
 app:
   cors:
-    allowed-origins:
-      - http://localhost:3000
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:}
   users:
     email-index-initializer:
       enabled: ${USER_EMAIL_INDEX_INITIALIZER_ENABLED:true}

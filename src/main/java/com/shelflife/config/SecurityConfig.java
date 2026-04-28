@@ -17,6 +17,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Configuration
 @RequiredArgsConstructor
@@ -41,9 +42,11 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource(
-            @Value("${app.cors.allowed-origins:http://localhost:3000}") List<String> allowedOrigins) {
+            @Value("${app.cors.allowed-origins:}") List<String> allowedOrigins) {
+        List<String> normalizedOrigins = normalizeAndValidateAllowedOrigins(allowedOrigins);
+
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(allowedOrigins);
+        configuration.setAllowedOrigins(normalizedOrigins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
@@ -51,5 +54,26 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    private List<String> normalizeAndValidateAllowedOrigins(List<String> allowedOrigins) {
+        List<String> normalized = allowedOrigins == null
+                ? List.of()
+                : allowedOrigins.stream()
+                .map(origin -> origin == null ? "" : origin.trim())
+                .filter(origin -> !origin.isEmpty())
+                .collect(Collectors.toList());
+
+        if (normalized.isEmpty()) {
+            throw new IllegalStateException("app.cors.allowed-origins must contain at least one origin");
+        }
+
+        if (normalized.stream().anyMatch("*"::equals)) {
+            throw new IllegalStateException(
+                    "Wildcard CORS origin '*' is not allowed when credentials are enabled"
+            );
+        }
+
+        return normalized;
     }
 }
