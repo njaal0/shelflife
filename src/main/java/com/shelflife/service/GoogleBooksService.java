@@ -90,6 +90,36 @@ public class GoogleBooksService {
         return results;
     }
 
+    /**
+     * Fetches the page count for a Google Books volume id.
+     *
+     * @param googleBookId Google volume id
+     * @return page count when available, otherwise null
+     */
+    public Integer getPageCount(String googleBookId) {
+        if (googleBookId == null || googleBookId.isBlank()) {
+            return null;
+        }
+
+        String urlTemplate = GOOGLE_BOOKS_BASE_URL + "/{googleBookId}";
+        JsonNode response;
+        Optional<String> maybeApiKey = Optional.ofNullable(apiKey).filter(k -> !k.isBlank());
+        if (maybeApiKey.isPresent()) {
+            urlTemplate += "?key={apiKey}";
+            response = restTemplate.getForObject(urlTemplate, JsonNode.class, googleBookId, maybeApiKey.get());
+        } else {
+            response = restTemplate.getForObject(urlTemplate, JsonNode.class, googleBookId);
+        }
+
+        JsonNode pageCountNode = response == null ? null : response.path("volumeInfo").path("pageCount");
+        if (pageCountNode == null || !pageCountNode.isNumber()) {
+            return null;
+        }
+
+        int pageCount = pageCountNode.asInt();
+        return pageCount > 0 ? pageCount : null;
+    }
+
     private String buildQuery(String title, String author, String publisher, String isbn) {
         if (isbn != null && !isbn.isBlank()) {
             return "isbn:" + isbn.trim();

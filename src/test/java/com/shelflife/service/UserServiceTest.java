@@ -6,6 +6,7 @@ import com.shelflife.exception.DuplicateEmailException;
 import com.shelflife.exception.UserNotFoundException;
 import com.shelflife.model.User;
 import com.shelflife.repository.BookEntryRepository;
+import com.shelflife.repository.ReadingTestRepository;
 import com.shelflife.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,6 +33,9 @@ class UserServiceTest {
 
     @Mock
     private BookEntryRepository bookEntryRepository;
+
+    @Mock
+    private ReadingTestRepository readingTestRepository;
 
     @InjectMocks
     private UserService userService;
@@ -114,6 +118,7 @@ class UserServiceTest {
 
         userService.deleteAccount("uid-1");
 
+        verify(readingTestRepository).deleteByUserId("uid-1");
         verify(bookEntryRepository).deleteByUserId("uid-1");
         verify(userRepository).delete(existing);
     }

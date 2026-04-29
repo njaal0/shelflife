@@ -17,6 +17,9 @@ firebase:
 app:
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:}
+  reading-tests:
+    active-index-initializer:
+      enabled: ${READING_TEST_ACTIVE_INDEX_INITIALIZER_ENABLED:true}
   users:
     email-index-initializer:
       enabled: ${USER_EMAIL_INDEX_INITIALIZER_ENABLED:true}

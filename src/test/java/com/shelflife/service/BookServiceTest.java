@@ -181,4 +181,19 @@ class BookServiceTest {
         assertTrue(ex.getReason().contains("Rating must be between 1 and 6"));
         verify(userService).assertUserExists("user-123");
     }
+
+    @Test
+    void deleteBook_shouldDeleteBookForUser() {
+        BookEntry existing = BookEntry.builder()
+                .id("book-1")
+                .userId("user-123")
+                .build();
+
+        when(bookEntryRepository.findByIdAndUserId("book-1", "user-123")).thenReturn(Optional.of(existing));
+
+        bookService.deleteBook("book-1", "user-123");
+
+        verify(userService, times(2)).assertUserExists("user-123");
+        verify(bookEntryRepository).delete(existing);
+    }
 }

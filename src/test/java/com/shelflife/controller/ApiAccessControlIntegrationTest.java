@@ -1,9 +1,12 @@
 package com.shelflife.controller;
 
 import com.shelflife.dto.BookSearchResult;
+import com.shelflife.dto.ReadingTestResponse;
 import com.shelflife.model.BookEntry;
+import com.shelflife.model.ReadingTestStatus;
 import com.shelflife.service.BookService;
 import com.shelflife.service.GoogleBooksService;
+import com.shelflife.service.ReadingTestService;
 import com.shelflife.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,7 +35,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(controllers = {SearchController.class, BookController.class, UserController.class})
+@WebMvcTest(controllers = {SearchController.class, BookController.class, UserController.class, ReadingTestController.class})
 @Import(com.shelflife.config.SecurityConfig.class)
 @ActiveProfiles("local")
 @TestPropertySource(properties = "firebase.auth.enabled=false")
@@ -49,6 +52,9 @@ class ApiAccessControlIntegrationTest {
 
     @MockBean
     private UserService userService;
+
+        @MockBean
+        private ReadingTestService readingTestService;
 
     @Test
     void search_shouldAllowUnauthenticatedRequestWithValidIsbn() throws Exception {
@@ -90,6 +96,15 @@ class ApiAccessControlIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"), "Missing Authorization header");
         assertUnauthorized(delete("/api/users/me"), "Missing Authorization header");
+        assertUnauthorized(get("/api/reading-tests"), "Missing Authorization header");
+        assertUnauthorized(get("/api/reading-tests/test-1"), "Missing Authorization header");
+        assertUnauthorized(post("/api/reading-tests/start"), "Missing Authorization header");
+        assertUnauthorized(post("/api/reading-tests/test-1/complete")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"), "Missing Authorization header");
+        assertUnauthorized(post("/api/reading-tests/test-1/daily-plan")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"), "Missing Authorization header");
     }
 
     @Test
@@ -185,6 +200,29 @@ class ApiAccessControlIntegrationTest {
 
         verify(bookService).deleteBook("book-1", "owner-user");
         verify(bookService).deleteBook("book-1", "other-user");
+    }
+
+    @Test
+    void readingTestGetEndpoint_shouldEnforceUserScopedAccess() throws Exception {
+        ReadingTestResponse ownerTest = ReadingTestResponse.builder()
+                .id("test-1")
+                .status(ReadingTestStatus.SCORED)
+                .build();
+
+        when(readingTestService.getTestForUser("test-1", "owner-user")).thenReturn(ownerTest);
+        when(readingTestService.getTestForUser("test-1", "other-user"))
+                .thenThrow(new ResponseStatusException(NOT_FOUND, "Reading test not found"));
+
+        mockMvc.perform(get("/api/reading-tests/test-1")
+                        .header("Authorization", "Bearer owner-user"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/reading-tests/test-1")
+                        .header("Authorization", "Bearer other-user"))
+                .andExpect(status().isNotFound());
+
+        verify(readingTestService).getTestForUser("test-1", "owner-user");
+        verify(readingTestService).getTestForUser("test-1", "other-user");
     }
 
     private void assertUnauthorized(MockHttpServletRequestBuilder requestBuilder,

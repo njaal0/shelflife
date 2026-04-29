@@ -6,6 +6,7 @@ import com.shelflife.exception.DuplicateEmailException;
 import com.shelflife.exception.UserNotFoundException;
 import com.shelflife.model.User;
 import com.shelflife.repository.BookEntryRepository;
+import com.shelflife.repository.ReadingTestRepository;
 import com.shelflife.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final BookEntryRepository bookEntryRepository;
+    private final ReadingTestRepository readingTestRepository;
 
     /**
      * Ensures a local user record exists for the authenticated principal.
@@ -119,6 +121,7 @@ public class UserService {
      */
     public void deleteAccount(String userId) {
         User user = getUserEntity(userId);
+        readingTestRepository.deleteByUserId(userId);
         bookEntryRepository.deleteByUserId(userId);
         userRepository.delete(user);
     }
