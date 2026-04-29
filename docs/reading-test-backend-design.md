@@ -1,165 +1,182 @@
-# Reading Test Backend Design (Future Phase)
+# Reading Test Backend Design and Implementation Notes
 
 ## Purpose
-This document defines the planned backend design for the reading test feature.
-It is a design-only artifact for future implementation and does not introduce runtime changes.
+This document describes the implemented reading test backend architecture and API behavior.
+It also records current constraints and follow-up considerations for future iterations.
 
-## Scope
-- Define module boundaries for controller, service, repository, and model layers.
-- Define authentication and authorization rules.
-- Define linkage between reading tests and current entities (User and BookEntry).
-- Define API contracts at a high level.
-- Define test and rollout strategy.
-
-## Out of Scope
-- No controller/service/model/repository classes are implemented in this phase.
-- No database migration scripts are executed in this phase.
-- No frontend contracts are finalized beyond draft endpoint shapes.
+## Implemented Scope
+- Controller, service, repository, and model layers for user-scoped reading tests.
+- Timed reading-speed calibration flow.
+- Per-book duration estimation using Google Books page count metadata.
+- Daily reading plan estimation.
+- Ownership and authentication enforcement using existing auth model.
+- Startup index initialization for active-test uniqueness safety.
 
 ## Design Goals
-- Keep all reading test data user-scoped and private.
-- Support test creation, answer submission, and result retrieval.
-- Keep compatibility with current auth model (FirebaseAuthFilter + /api/** protection).
-- Minimize impact on existing book and user flows.
+- Keep all reading test data private and scoped to the authenticated user.
+- Ensure only one active calibration test exists per user at a time.
+- Provide deterministic and explainable estimates from submitted timing data.
+- Preserve compatibility with current `/api/**` security behavior.
 
-## Proposed Backend Modules
+## Implemented Backend Modules
 
 ### Controller Layer
-Planned class: ReadingTestController
+Class: `ReadingTestController`
 
-Planned responsibilities:
-- Create a reading test for a specific book.
-- Submit answers for an active test.
-- Retrieve one test result.
-- List authenticated user's tests with optional filters.
+Route base:
+- `/api/reading-tests`
 
-Planned route base:
-- /api/reading-tests
+Endpoints:
+- `POST /api/reading-tests/start`
+- `POST /api/reading-tests/{testId}/complete`
+- `POST /api/reading-tests/{testId}/daily-plan`
+- `GET /api/reading-tests/{testId}`
+- `GET /api/reading-tests`
 
 ### Service Layer
-Planned class: ReadingTestService
+Class: `ReadingTestService`
 
-Planned responsibilities:
-- Validate test ownership and book ownership.
-- Generate test content from available metadata (initially static/question bank; optional AI later).
-- Score submissions.
-- Persist result snapshots and status transitions.
+Responsibilities:
+- Start in-progress tests with prompt text and prompt word count.
+- Validate user ownership and test state transitions.
+- Compute words-per-minute from prompt word count and `sampleReadSeconds`.
+- Build per-book duration estimates from page count metadata.
+- Compute aggregate days/hours estimates and daily-plan projections.
+- Map upstream page-count lookup failures to controlled API responses.
 
 ### Repository Layer
-Planned class: ReadingTestRepository
+Class: `ReadingTestRepository`
 
-Planned responsibilities:
-- User-scoped lookups.
-- Book-scoped lookups.
-- Status and date-range queries.
+Responsibilities:
+- User-scoped lookups by id and list views.
+- Status-filtered list queries.
+- Active-test existence checks by status set.
+- User-scoped delete for account cleanup.
 
 ### Model Layer
-Planned class: ReadingTest
+Class: `ReadingTest`
 
-Planned fields:
-- id
-- userId
-- bookEntryId
-- googleBookId (optional denormalized lookup key)
-- status (DRAFT, IN_PROGRESS, SUBMITTED, SCORED)
-- questionSetVersion
-- questions (stored prompt/options snapshot)
-- answers (submitted answers)
-- score (numeric)
-- maxScore
-- feedbackSummary
-- startedAt
-- submittedAt
-- createdAt
-- updatedAt
+Stored fields:
+- `id`
+- `userId`
+- `status` (`DRAFT`, `IN_PROGRESS`, `SUBMITTED`, `SCORED`)
+- `promptText`
+- `promptWordCount`
+- `sampleReadSeconds`
+- `wordsPerMinute`
+- `selectedBookEntryIds`
+- `bookPlans[]`
+- `totalEstimatedHours`
+- `totalEstimatedDays`
+- `dailyReadingMinutes`
+- `totalEstimatedDaysAtDailyReading`
+- `startedAt`
+- `submittedAt`
+- `createdAt`
+- `updatedAt`
+
+`bookPlans[]` snapshot fields:
+- `bookEntryId`
+- `title`
+- `pageCount`
+- `estimatedHours`
+- `estimatedDays`
+- `estimatedDaysAtDailyReading`
 
 ## Data Ownership and Relationships
-- User -> BookEntry already exists.
-- ReadingTest should belong to exactly one user and one BookEntry.
-- Access checks should always verify userId and bookEntryId together.
-- Deleting a user should delete reading tests for that user.
-- Deleting a book entry should delete associated reading tests or mark them archived (final behavior to be decided).
+- Reading tests are user-scoped documents.
+- Selected books are represented by `selectedBookEntryIds` and snapshot data in `bookPlans`.
+- Ownership checks occur through user-scoped repository queries and `BookService.getBookForUser(...)`.
+- Deleting a user deletes user-owned reading tests (`UserService.deleteAccount(...)`).
 
 ## Authentication and Authorization Rules
-- All reading test endpoints are protected under /api/**.
-- Request identity is derived from Authentication.getName() (current userId pattern).
-- No cross-user access is allowed.
-- Any test lookup must be user-scoped at repository level.
+- All reading-test routes are under `/api/**` and require authentication.
+- Request identity is derived from `Authentication.getName()`.
+- Cross-user access is denied by user-scoped lookups.
 
-## Draft API Contracts
+## Implemented API Contracts
 
-### Create Test
-- POST /api/reading-tests/books/{bookEntryId}
+### Start Test
+- `POST /api/reading-tests/start`
 - Auth required: yes
-- Response: 201 with created test metadata and questions
+- Response: `201 Created` with prompt metadata and test id
 - Error cases:
-  - 401 unauthorized
-  - 404 book not found for user
-  - 409 test already active for book (if one-active-test rule is enabled)
+  - `401` unauthorized
+  - `404` user not found
+  - `409` active test already exists
 
-### Submit Answers
-- POST /api/reading-tests/{testId}/submit
+### Complete Test
+- `POST /api/reading-tests/{testId}/complete`
 - Auth required: yes
-- Request body: answers list
-- Response: 200 with scored result summary
+- Request body:
+  - `sampleReadSeconds` (positive integer)
+  - `bookEntryIds` (non-empty, non-blank list)
+- Response: `200 OK` with per-book and aggregate estimates
 - Error cases:
-  - 401 unauthorized
-  - 404 test not found for user
-  - 409 already submitted
-  - 400 invalid answer payload
+  - `400` invalid payload or missing page count metadata
+  - `401` unauthorized
+  - `404` user/test/book not found for owner
+  - `409` invalid test state
+  - `502` upstream Google Books lookup failure
+
+### Apply Daily Plan
+- `POST /api/reading-tests/{testId}/daily-plan`
+- Auth required: yes
+- Request body:
+  - `dailyReadingMinutes` (positive integer)
+- Response: `200 OK` with daily-plan completion estimate
+- Error cases:
+  - `400` invalid payload
+  - `401` unauthorized
+  - `404` user/test not found
+  - `409` invalid test state
 
 ### Get Test
-- GET /api/reading-tests/{testId}
+- `GET /api/reading-tests/{testId}`
 - Auth required: yes
-- Response: 200 with test details
+- Response: `200 OK` with user-scoped test details
 - Error cases:
-  - 401 unauthorized
-  - 404 test not found for user
+  - `401` unauthorized
+  - `404` user/test not found
 
 ### List Tests
-- GET /api/reading-tests?status=&bookEntryId=&from=&to=
+- `GET /api/reading-tests?status=&from=&to=`
 - Auth required: yes
-- Response: 200 with filtered list
+- Response: `200 OK` with filtered user-scoped tests
+- Error cases:
+  - `400` invalid date range
+  - `401` unauthorized
+  - `404` user not found
 
-## Validation Rules (Draft)
-- bookEntryId must belong to authenticated user.
-- answers size must match expected questions.
-- answers must conform to question type constraints.
-- submission allowed only when status is IN_PROGRESS.
+## Validation Rules
+- `sampleReadSeconds` must be greater than `0`.
+- `bookEntryIds` must be non-empty and contain unique non-blank values.
+- `dailyReadingMinutes` must be greater than `0`.
+- Complete is allowed only from `IN_PROGRESS`.
+- Daily plan is allowed only from `SUBMITTED` or `SCORED`.
 
-## Indexing Strategy (Draft)
-Recommended indexes for ReadingTest collection:
-- userId + createdAt (list view)
-- userId + status (filtered list)
-- userId + bookEntryId + status (active test checks)
-- bookEntryId (cascade/archive operations)
+## Indexing and Rollout Strategy
+Collection indexes:
+- `userId + createdAt`
+- `userId + status + createdAt`
+
+Startup initializer (`ReadingTestIndexInitializer`) additionally ensures:
+- Legacy malformed or duplicate active records are deactivated safely.
+- Unique partial index on `userId` for active statuses (`DRAFT`, `IN_PROGRESS`).
+
+This prevents race conditions for active-test creation and supports safe rollout in existing environments.
 
 ## Error Contract
-- Reuse GlobalExceptionHandler and ErrorResponse structure.
-- Use ResponseStatusException for request/state violations.
-- Keep error codes/messages consistent with existing API style.
+- Uses `GlobalExceptionHandler` and existing `ErrorResponse` format.
+- Uses `ResponseStatusException` for request, validation, and state violations.
+- Returns controlled message for upstream Google Books lookup failure.
 
-## Testing Strategy (Future Phase)
-- Unit tests:
-  - scoring and state transitions
-  - validation rules
-- Controller tests:
-  - request/response mapping
-  - validation and error payloads
-- Security integration tests:
-  - unauthenticated blocked
-  - cross-user access denied
-- Repository tests:
-  - user-scoped queries and index-backed paths
+## Testing Coverage
+- Service tests for state transitions, estimation, and error mapping.
+- Controller tests for request validation and endpoint wiring.
+- Security integration tests for unauthorized access and user-scoped access boundaries.
+- Index initializer tests for dedupe and index enforcement behavior.
 
-## Rollout Plan (Future)
-1. Introduce model + repository + service with unit tests.
-2. Add controller endpoints and controller tests.
-3. Add integration tests for auth + ownership boundaries.
-4. Enable feature for frontend integration after API contract freeze.
-
-## Open Decisions
-- One active test per book vs multiple active drafts.
-- Manual scoring only vs auto-scoring plus manual override.
-- Hard delete vs archive behavior on book deletion.
-- Whether question generation is deterministic by questionSetVersion.
+## Follow-Up Considerations
+- Add explicit OpenAPI/Swagger documentation for request/response examples.
+- Consider adding endpoint-level contract tests for full serialized error payloads on `502` paths.
