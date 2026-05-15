@@ -164,7 +164,7 @@ public class BookService {
      * @param entry domain object to map
      * @return corresponding response DTO
      */
-    public BookResponse toResponse(BookEntry entry) {
+    BookResponse toResponse(BookEntry entry) {
         return BookResponse.builder()
                 .id(entry.getId())
                 .userId(entry.getUserId())
