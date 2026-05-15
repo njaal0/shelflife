@@ -1,8 +1,9 @@
 package com.shelflife.controller;
 
+import com.shelflife.dto.BookResponse;
 import com.shelflife.dto.BookSearchResult;
+import com.shelflife.dto.PagedResponse;
 import com.shelflife.dto.ReadingTestResponse;
-import com.shelflife.model.BookEntry;
 import com.shelflife.model.ReadingTestStatus;
 import com.shelflife.service.BookService;
 import com.shelflife.service.GoogleBooksService;
@@ -23,6 +24,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -121,19 +123,21 @@ class ApiAccessControlIntegrationTest {
 
     @Test
     void protectedEndpoints_shouldAllowAuthenticatedRequestInLocalMode() throws Exception {
-        when(bookService.getBooksForUser("user-1")).thenReturn(List.of());
+        PagedResponse<BookResponse> emptyPage = PagedResponse.<BookResponse>builder()
+                .content(List.of()).page(0).size(20).totalElements(0).totalPages(0).build();
+        when(bookService.getBooksForUser("user-1", 0, 20)).thenReturn(emptyPage);
 
         mockMvc.perform(get("/api/shelves")
                         .header("Authorization", "Bearer user-1"))
                 .andExpect(status().isOk());
 
         verify(userService).ensureUserExists("user-1", null, null);
-        verify(bookService).getBooksForUser("user-1");
+        verify(bookService).getBooksForUser("user-1", 0, 20);
     }
 
     @Test
     void bookEndpoint_shouldEnforceUserScopedAccess() throws Exception {
-        BookEntry ownerBook = BookEntry.builder()
+        BookResponse ownerBook = BookResponse.builder()
                 .id("book-1")
                 .userId("owner-user")
                 .title("Owned Book")
@@ -158,7 +162,7 @@ class ApiAccessControlIntegrationTest {
 
     @Test
     void bookUpdateEndpoint_shouldEnforceUserScopedAccess() throws Exception {
-        BookEntry updatedBook = BookEntry.builder()
+        BookResponse updatedBook = BookResponse.builder()
                 .id("book-1")
                 .userId("owner-user")
                 .title("Updated Book")
@@ -172,13 +176,13 @@ class ApiAccessControlIntegrationTest {
         mockMvc.perform(put("/api/books/book-1")
                         .header("Authorization", "Bearer owner-user")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"shelf\":\"finished\"}"))
+                        .content("{\"shelf\":\"finished\",\"title\":\"Updated Book\"}"))
                 .andExpect(status().isOk());
 
         mockMvc.perform(put("/api/books/book-1")
                         .header("Authorization", "Bearer other-user")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"shelf\":\"finished\"}"))
+                        .content("{\"shelf\":\"finished\",\"title\":\"Updated Book\"}"))
                 .andExpect(status().isNotFound());
 
         verify(bookService).updateBook(eq("book-1"), eq("owner-user"), any());

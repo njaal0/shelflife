@@ -81,6 +81,43 @@ class UserServiceTest {
     }
 
     @Test
+    void ensureUserExists_shouldOverwriteStaleEmailFromFirebase() {
+        User existing = User.builder()
+                .id("uid-1")
+                .email("old@example.com")
+                .emailNormalized("old@example.com")
+                .displayName("Old Name")
+                .build();
+
+        when(userRepository.findById("uid-1")).thenReturn(Optional.of(existing));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        userService.ensureUserExists("uid-1", "new@example.com", "New Name");
+
+        assertEquals("new@example.com", existing.getEmail());
+        assertEquals("new@example.com", existing.getEmailNormalized());
+        assertEquals("New Name", existing.getDisplayName());
+    }
+
+    @Test
+    void ensureUserExists_shouldNotClearEmailWhenFirebaseEmailIsBlank() {
+        User existing = User.builder()
+                .id("uid-1")
+                .email("existing@example.com")
+                .emailNormalized("existing@example.com")
+                .displayName("Existing Name")
+                .build();
+
+        when(userRepository.findById("uid-1")).thenReturn(Optional.of(existing));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        userService.ensureUserExists("uid-1", null, null);
+
+        assertEquals("existing@example.com", existing.getEmail());
+        assertEquals("Existing Name", existing.getDisplayName());
+    }
+
+    @Test
     void updateProfile_shouldRejectDuplicateEmail() {
         User existing = User.builder().id("uid-1").email("old@example.com").build();
         User other = User.builder().id("uid-2").email("taken@example.com").build();

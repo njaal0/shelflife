@@ -129,8 +129,17 @@ class ReadingTestControllerTest {
 
     @Test
     void listTests_shouldReturnFilteredResults() throws Exception {
-        when(readingTestService.listTestsForUser(eq("uid-1"), eq(ReadingTestStatus.SCORED), any(), any()))
-                .thenReturn(List.of(ReadingTestResponse.builder().id("test-1").status(ReadingTestStatus.SCORED).build()));
+        com.shelflife.dto.PagedResponse<ReadingTestResponse> pagedResponse =
+                com.shelflife.dto.PagedResponse.<ReadingTestResponse>builder()
+                        .content(List.of(ReadingTestResponse.builder().id("test-1").status(ReadingTestStatus.SCORED).build()))
+                        .page(0)
+                        .size(20)
+                        .totalElements(1)
+                        .totalPages(1)
+                        .build();
+
+        when(readingTestService.listTestsForUser(eq("uid-1"), eq(ReadingTestStatus.SCORED), any(), any(), eq(0), eq(20)))
+                .thenReturn(pagedResponse);
 
         mockMvc.perform(get("/api/reading-tests")
                         .principal(new UsernamePasswordAuthenticationToken("uid-1", null))
@@ -138,6 +147,8 @@ class ReadingTestControllerTest {
                         .param("from", "2026-01-01")
                         .param("to", "2026-12-31"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value("test-1"));
+                .andExpect(jsonPath("$.content[0].id").value("test-1"))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1));
     }
 }

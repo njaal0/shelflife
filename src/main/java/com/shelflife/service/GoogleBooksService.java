@@ -4,9 +4,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.shelflife.dto.BookSearchResult;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -28,7 +33,10 @@ public class GoogleBooksService {
 
     public GoogleBooksService(RestTemplateBuilder restTemplateBuilder,
                               @Value("${google.books.api.key:}") String apiKey) {
-        this.restTemplate = restTemplateBuilder.build();
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout((int) Duration.ofSeconds(5).toMillis());
+        factory.setReadTimeout((int) Duration.ofSeconds(10).toMillis());
+        this.restTemplate = restTemplateBuilder.requestFactory(() -> factory).build();
         this.apiKey = apiKey;
     }
 
@@ -44,6 +52,7 @@ public class GoogleBooksService {
      * @param year optional publication year filter
      * @param isbn optional normalized ISBN value
      * @return mapped search results
+     * @throws ResponseStatusException with 503 when the Google Books API is unreachable
      */
     public List<BookSearchResult> searchBooks(String title,
                                               String author,
@@ -52,13 +61,19 @@ public class GoogleBooksService {
                                               String isbn) {
         String query = buildQuery(title, author, publisher, isbn);
         String urlTemplate = GOOGLE_BOOKS_BASE_URL + "?q={query}&maxResults=20";
-        JsonNode response;
         Optional<String> maybeApiKey = Optional.ofNullable(apiKey).filter(k -> !k.isBlank());
-        if (maybeApiKey.isPresent()) {
-            urlTemplate += "&key={apiKey}";
-            response = restTemplate.getForObject(urlTemplate, JsonNode.class, query, maybeApiKey.get());
-        } else {
-            response = restTemplate.getForObject(urlTemplate, JsonNode.class, query);
+
+        JsonNode response;
+        try {
+            if (maybeApiKey.isPresent()) {
+                urlTemplate += "&key={apiKey}";
+                response = restTemplate.getForObject(urlTemplate, JsonNode.class, query, maybeApiKey.get());
+            } else {
+                response = restTemplate.getForObject(urlTemplate, JsonNode.class, query);
+            }
+        } catch (RestClientException ex) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Book search is temporarily unavailable. Please try again later.", ex);
         }
 
         JsonNode items = response == null ? null : response.get("items");
