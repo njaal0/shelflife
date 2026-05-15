@@ -40,13 +40,13 @@ public class UserService {
 
         if (existing.isPresent()) {
             User user = existing.get();
-            if (isBlank(user.getEmail()) && !isBlank(normalizedEmail)) {
+            if (!isBlank(normalizedEmail)) {
                 user.setEmail(normalizedEmail);
-            }
-            if (isBlank(user.getEmailNormalized()) && !isBlank(user.getEmail())) {
+                user.setEmailNormalized(normalizedEmail);
+            } else if (isBlank(user.getEmailNormalized()) && !isBlank(user.getEmail())) {
                 user.setEmailNormalized(normalizeEmail(user.getEmail()));
             }
-            if (isBlank(user.getDisplayName()) && !isBlank(displayName)) {
+            if (!isBlank(displayName)) {
                 user.setDisplayName(displayName.trim());
             }
             user.setLastLoginAt(now);

@@ -2,6 +2,8 @@ package com.shelflife.repository;
 
 import com.shelflife.model.ReadingTest;
 import com.shelflife.model.ReadingTestStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.Collection;
@@ -16,6 +18,8 @@ public interface ReadingTestRepository extends MongoRepository<ReadingTest, Stri
     List<ReadingTest> findByStatusIn(Collection<ReadingTestStatus> statuses);
 
     List<ReadingTest> findByUserIdOrderByCreatedAtDesc(String userId);
+
+    Page<ReadingTest> findByUserIdOrderByCreatedAtDesc(String userId, Pageable pageable);
 
     List<ReadingTest> findByUserIdAndStatusOrderByCreatedAtDesc(String userId, ReadingTestStatus status);
 

@@ -105,10 +105,72 @@ src/main/java/com/shelflife/
 │   └── UserService.java
 ├── dto/
 │   ├── BookRequest.java
+│   ├── BookResponse.java
 │   ├── BookSearchResult.java
+│   ├── ErrorResponse.java
+│   ├── PagedResponse.java
 │   ├── ReadingTestBookPlanResponse.java
 │   ├── ReadingTestCompletionRequest.java
 │   ├── ReadingTestDailyPlanRequest.java
-│   └── ReadingTestResponse.java
+│   ├── ReadingTestResponse.java
+│   ├── UserResponse.java
+│   └── UserUpdateRequest.java
 └── ShelfLifeApplication.java
+```
+
+## Local Development Setup
+
+### Prerequisites
+
+- Java 17+
+- Maven 3.8+
+- MongoDB (local instance or MongoDB Atlas connection string)
+
+### Quickstart
+
+1. **Set the MongoDB connection string** (the only required environment variable in local mode):
+   ```bash
+   export MONGODB_URI=mongodb://localhost:27017/shelflife
+   ```
+
+2. **Start with the `local` profile** to bypass Firebase authentication:
+   ```bash
+   mvn spring-boot:run -Dspring-boot.run.profiles=local
+   ```
+   The `application-local.yml` profile sets `firebase.auth.enabled=false` and allows CORS from `http://localhost:3000`.
+
+3. The application starts on `http://localhost:8080`.
+
+### Authentication in local mode
+
+When running under the `local` profile (`firebase.auth.enabled=false`), any non-blank bearer token is accepted and used directly as the principal/user-id. This allows easy manual testing without a real Firebase account:
+
+```bash
+# Use any string as a bearer token — it becomes the user ID
+curl -H "Authorization: Bearer local-test-user" http://localhost:8080/api/users/me
+```
+
+| User ID              | Token to pass              |
+|----------------------|----------------------------|
+| `local-test-user`    | `Bearer local-test-user`   |
+| `alice`              | `Bearer alice`             |
+| `bob`                | `Bearer bob`               |
+
+### Optional environment variables
+
+| Variable                  | Default                         | Description                              |
+|---------------------------|---------------------------------|------------------------------------------|
+| `MONGODB_URI`             | `mongodb://localhost:27017/shelflife` | MongoDB connection string           |
+| `GOOGLE_BOOKS_API_KEY`    | _(empty — unauthenticated mode)_ | Google Books API key for higher quota   |
+
+### API documentation (Swagger UI)
+
+When the application is running, interactive API docs are available at:
+- **Swagger UI**: `http://localhost:8080/swagger-ui.html`
+- **OpenAPI JSON**: `http://localhost:8080/v3/api-docs`
+
+### Running tests
+
+```bash
+mvn test
 ```

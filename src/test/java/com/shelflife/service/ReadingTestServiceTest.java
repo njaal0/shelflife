@@ -1,7 +1,8 @@
 package com.shelflife.service;
 
+import com.shelflife.dto.BookResponse;
+import com.shelflife.dto.PagedResponse;
 import com.shelflife.dto.ReadingTestResponse;
-import com.shelflife.model.BookEntry;
 import com.shelflife.model.ReadingTest;
 import com.shelflife.model.ReadingTestStatus;
 import com.shelflife.repository.ReadingTestRepository;
@@ -97,7 +98,7 @@ class ReadingTestServiceTest {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        BookEntry book = BookEntry.builder()
+        BookResponse book = BookResponse.builder()
                 .id("book-1")
                 .userId("user-1")
                 .googleBookId("g-1")
@@ -130,7 +131,7 @@ class ReadingTestServiceTest {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        BookEntry book = BookEntry.builder()
+        BookResponse book = BookResponse.builder()
                 .id("book-1")
                 .userId("user-1")
                 .googleBookId("g-1")
@@ -159,7 +160,7 @@ class ReadingTestServiceTest {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        BookEntry book = BookEntry.builder()
+        BookResponse book = BookResponse.builder()
                 .id("book-1")
                 .userId("user-1")
                 .googleBookId("g-1")
@@ -224,14 +225,16 @@ class ReadingTestServiceTest {
         when(readingTestRepository.findByUserIdOrderByCreatedAtDesc("user-1"))
                 .thenReturn(List.of(recentTest, oldTest));
 
-        List<ReadingTestResponse> responses = readingTestService.listTestsForUser(
+        PagedResponse<ReadingTestResponse> response = readingTestService.listTestsForUser(
                 "user-1",
                 null,
                 LocalDate.of(2026, 2, 1),
-                LocalDate.of(2026, 4, 1)
+                LocalDate.of(2026, 4, 1),
+                0,
+                20
         );
 
-        assertEquals(1, responses.size());
-        assertEquals("recent", responses.get(0).getId());
+        assertEquals(1, response.getTotalElements());
+        assertEquals("recent", response.getContent().get(0).getId());
     }
 }

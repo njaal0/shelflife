@@ -7,12 +7,15 @@ import org.springframework.http.MediaType;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 class GoogleBooksServiceTest {
@@ -93,6 +96,23 @@ class GoogleBooksServiceTest {
 
         assertEquals(1, results.size());
         assertEquals("0132350882", results.get(0).getIsbn());
+        server.verify();
+    }
+
+    @Test
+    void searchBooks_shouldReturn503WhenGoogleBooksApiIsUnreachable() {
+        GoogleBooksService service = new GoogleBooksService(new RestTemplateBuilder(), "");
+        RestTemplate restTemplate = (RestTemplate) ReflectionTestUtils.getField(service, "restTemplate");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+
+        server.expect(requestTo(containsString("q=intitle:Some%20Book")))
+                .andRespond(withServerError());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> service.searchBooks("Some Book", null, null, null, null));
+
+        assertEquals(503, ex.getStatusCode().value());
+        assertEquals("Book search is temporarily unavailable. Please try again later.", ex.getReason());
         server.verify();
     }
 }

@@ -2,7 +2,8 @@ package com.shelflife.service;
 
 import com.shelflife.dto.ReadingTestBookPlanResponse;
 import com.shelflife.dto.ReadingTestResponse;
-import com.shelflife.model.BookEntry;
+import com.shelflife.dto.PagedResponse;
+import com.shelflife.dto.BookResponse;
 import com.shelflife.model.ReadingTest;
 import com.shelflife.model.ReadingTestStatus;
 import com.shelflife.repository.ReadingTestRepository;
@@ -217,19 +218,23 @@ public class ReadingTestService {
     }
 
     /**
-     * Lists user-scoped reading tests with optional filters.
+     * Lists user-scoped reading tests with optional filters, returned as a paginated response.
      *
      * @param userId authenticated user id
      * @param status optional status filter
      * @param from optional created-date lower bound (inclusive)
      * @param to optional created-date upper bound (inclusive)
+     * @param page zero-based page index
+     * @param size maximum number of results per page
      * @return matching reading tests
      */
-    public List<ReadingTestResponse> listTestsForUser(
+    public PagedResponse<ReadingTestResponse> listTestsForUser(
             String userId,
             ReadingTestStatus status,
             LocalDate from,
-            LocalDate to
+            LocalDate to,
+            int page,
+            int size
     ) {
         userService.assertUserExists(userId);
 
@@ -239,10 +244,24 @@ public class ReadingTestService {
         }
 
         List<ReadingTest> tests = fetchTests(userId, status);
-        return tests.stream()
+        List<ReadingTestResponse> filtered = tests.stream()
                 .filter(test -> matchesDateRange(test, from, to))
                 .map(this::toResponse)
                 .toList();
+
+        long totalElements = filtered.size();
+        int totalPages = size > 0 ? (int) Math.ceil((double) totalElements / size) : 1;
+        int fromIndex = Math.min(page * size, filtered.size());
+        int toIndex = Math.min(fromIndex + size, filtered.size());
+        List<ReadingTestResponse> pageContent = filtered.subList(fromIndex, toIndex);
+
+        return PagedResponse.<ReadingTestResponse>builder()
+                .content(pageContent)
+                .page(page)
+                .size(size)
+                .totalElements(totalElements)
+                .totalPages(totalPages)
+                .build();
     }
 
     /**
@@ -295,7 +314,7 @@ public class ReadingTestService {
                                    String bookEntryId,
                                    double wordsPerMinute,
                                    Integer dailyReadingMinutes) {
-        BookEntry bookEntry = bookService.getBookForUser(bookEntryId, userId);
+        BookResponse bookEntry = bookService.getBookForUser(bookEntryId, userId);
         if (bookEntry.getGoogleBookId() == null || bookEntry.getGoogleBookId().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                 "Selected book has no Google volume id for page-count lookup");
@@ -331,7 +350,7 @@ public class ReadingTestService {
             .build();
         }
 
-        private String safeTitle(BookEntry bookEntry) {
+        private String safeTitle(BookResponse bookEntry) {
         if (bookEntry.getTitle() == null || bookEntry.getTitle().isBlank()) {
             return "Unknown title";
         }

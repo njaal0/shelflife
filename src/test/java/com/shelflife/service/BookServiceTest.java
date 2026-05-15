@@ -1,6 +1,7 @@
 package com.shelflife.service;
 
 import com.shelflife.dto.BookRequest;
+import com.shelflife.dto.BookResponse;
 import com.shelflife.model.BookEntry;
 import com.shelflife.repository.BookEntryRepository;
 import org.junit.jupiter.api.Test;
@@ -14,7 +15,6 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -42,7 +42,7 @@ class BookServiceTest {
 
         when(bookEntryRepository.save(any(BookEntry.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        BookEntry created = bookService.createBook("user-123", request);
+        BookResponse created = bookService.createBook("user-123", request);
 
         assertEquals("user-123", created.getUserId());
         assertEquals("book-1", created.getGoogleBookId());
@@ -68,10 +68,10 @@ class BookServiceTest {
         when(bookEntryRepository.findByIdAndUserId("book-9", "user-123")).thenReturn(Optional.of(existing));
         when(bookEntryRepository.save(any(BookEntry.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        BookEntry updated = bookService.updateBook("book-9", "user-123", request);
+        BookResponse updated = bookService.updateBook("book-9", "user-123", request);
 
         assertEquals("9780132350884", updated.getIsbn());
-        verify(userService, times(2)).assertUserExists("user-123");
+        verify(userService).assertUserExists("user-123");
     }
 
     @Test
@@ -106,10 +106,10 @@ class BookServiceTest {
         when(bookEntryRepository.findByIdAndUserId("book-10", "user-123")).thenReturn(Optional.of(existing));
         when(bookEntryRepository.save(any(BookEntry.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        BookEntry updated = bookService.updateBook("book-10", "user-123", request);
+        BookResponse updated = bookService.updateBook("book-10", "user-123", request);
 
         assertNull(updated.getIsbn());
-        verify(userService, times(2)).assertUserExists("user-123");
+        verify(userService).assertUserExists("user-123");
     }
 
     @Test
@@ -161,7 +161,7 @@ class BookServiceTest {
 
         when(bookEntryRepository.save(any(BookEntry.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        BookEntry created = bookService.createBook("user-123", request);
+        BookResponse created = bookService.createBook("user-123", request);
         assertEquals(6, created.getRating());
         verify(userService).assertUserExists("user-123");
     }
@@ -193,7 +193,44 @@ class BookServiceTest {
 
         bookService.deleteBook("book-1", "user-123");
 
-        verify(userService, times(2)).assertUserExists("user-123");
+        verify(userService).assertUserExists("user-123");
         verify(bookEntryRepository).delete(existing);
+    }
+
+    @Test
+    void createBook_shouldRejectDuplicateByIsbn() {
+        BookRequest request = BookRequest.builder()
+                .title("Duplicate Book")
+                .shelf("reading")
+                .isbn("9780134685991")
+                .googleBookId("book-1")
+                .build();
+
+        when(bookEntryRepository.existsByUserIdAndIsbn("user-123", "9780134685991")).thenReturn(true);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> bookService.createBook("user-123", request));
+
+        assertEquals(409, ex.getStatusCode().value());
+        assertEquals("Book is already on your shelf", ex.getReason());
+        verify(userService).assertUserExists("user-123");
+    }
+
+    @Test
+    void createBook_shouldRejectDuplicateByGoogleBookId() {
+        BookRequest request = BookRequest.builder()
+                .title("Duplicate Book")
+                .shelf("reading")
+                .googleBookId("book-1")
+                .build();
+
+        when(bookEntryRepository.existsByUserIdAndGoogleBookId("user-123", "book-1")).thenReturn(true);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> bookService.createBook("user-123", request));
+
+        assertEquals(409, ex.getStatusCode().value());
+        assertEquals("Book is already on your shelf", ex.getReason());
+        verify(userService).assertUserExists("user-123");
     }
 }

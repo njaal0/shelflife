@@ -2,6 +2,11 @@ package com.shelflife.controller;
 
 import com.shelflife.dto.BookSearchResult;
 import com.shelflife.service.GoogleBooksService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +24,7 @@ import java.util.regex.Pattern;
 @RestController
 @RequestMapping("/api/books")
 @RequiredArgsConstructor
+@Tag(name = "Search", description = "Public Google Books search. No authentication required.")
 public class SearchController {
 
     private static final Pattern ISBN_10_PATTERN = Pattern.compile("^[0-9]{9}[0-9Xx]$");
@@ -39,6 +45,15 @@ public class SearchController {
      * @param isbn optional ISBN-10/ISBN-13 filter (hyphens/spaces allowed)
      * @return list of matching books from Google Books
      */
+    @Operation(
+            summary = "Search books",
+            description = "Searches Google Books by title, author, publisher, year, or ISBN. "
+                    + "At least one parameter is required. When isbn is provided, ISBN-only search mode is used. "
+                    + "This endpoint is public — no Authorization header is required."
+    )
+    @ApiResponse(responseCode = "200", description = "List of matching books")
+    @ApiResponse(responseCode = "400", description = "No search parameters supplied or invalid ISBN", content = @Content(schema = @Schema(ref = "#/components/schemas/ErrorResponse")))
+    @ApiResponse(responseCode = "503", description = "Google Books API is temporarily unavailable", content = @Content(schema = @Schema(ref = "#/components/schemas/ErrorResponse")))
     @GetMapping("/search")
     public List<BookSearchResult> searchBooks(
             @RequestParam(required = false) String title,
