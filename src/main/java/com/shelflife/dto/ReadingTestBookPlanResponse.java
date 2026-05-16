@@ -19,4 +19,10 @@ public class ReadingTestBookPlanResponse {
     private Double estimatedHours;
     private Double estimatedDays;
     private Double estimatedDaysAtDailyReading;
+    /**
+     * Indicates whether the page count is a fallback estimate (true) or from Google Books API (false).
+     * When true, the frontend should show "estimated based on typical book length" in UI.
+     */
+    @Builder.Default
+    private Boolean isPageCountEstimate = false;
 }

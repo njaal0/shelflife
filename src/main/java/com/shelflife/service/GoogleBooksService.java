@@ -106,10 +106,18 @@ public class GoogleBooksService {
     }
 
     /**
-     * Fetches the page count for a Google Books volume id.
+     * Fetches the page count for a Google Books volume id with graceful fallback on API outages.
+     *
+     * <p>This method implements resilience to Google Books API unavailability:
+     * <ul>
+     *   <li>Returns null if googleBookId is blank or null (cannot proceed)</li>
+     *   <li>Returns null if the API returns no pageCount field (book metadata unavailable)</li>
+     *   <li>Returns null if the API is unreachable (timeout, 502/503, network error)
+     *       without throwing, allowing caller to apply fallback estimates</li>
+     * </ul>
      *
      * @param googleBookId Google volume id
-     * @return page count when available, otherwise null
+     * @return page count when available, otherwise null (includes null on API unavailability)
      */
     public Integer getPageCount(String googleBookId) {
         if (googleBookId == null || googleBookId.isBlank()) {
@@ -119,11 +127,17 @@ public class GoogleBooksService {
         String urlTemplate = GOOGLE_BOOKS_BASE_URL + "/{googleBookId}";
         JsonNode response;
         Optional<String> maybeApiKey = Optional.ofNullable(apiKey).filter(k -> !k.isBlank());
-        if (maybeApiKey.isPresent()) {
-            urlTemplate += "?key={apiKey}";
-            response = restTemplate.getForObject(urlTemplate, JsonNode.class, googleBookId, maybeApiKey.get());
-        } else {
-            response = restTemplate.getForObject(urlTemplate, JsonNode.class, googleBookId);
+        try {
+            if (maybeApiKey.isPresent()) {
+                urlTemplate += "?key={apiKey}";
+                response = restTemplate.getForObject(urlTemplate, JsonNode.class, googleBookId, maybeApiKey.get());
+            } else {
+                response = restTemplate.getForObject(urlTemplate, JsonNode.class, googleBookId);
+            }
+        } catch (RestClientException ex) {
+            // API is unavailable or unreachable (timeout, 502/503, network error)
+            // Return null to allow caller to apply fallback estimates instead of failing hard
+            return null;
         }
 
         JsonNode pageCountNode = response == null ? null : response.path("volumeInfo").path("pageCount");

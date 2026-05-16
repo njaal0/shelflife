@@ -59,6 +59,44 @@ The complete/daily-plan responses include:
 - Explicit aggregate duration breakdown (`totalEstimatedDurationDays`, `totalEstimatedDurationHours`)
 - Daily-plan completion estimate (`totalEstimatedDaysAtDailyReading`)
 
+**Fallback Page Count Estimates:**
+
+When Google Books API is unavailable or doesn't have page count data for a book, ShelfLife applies a fallback estimate of **300 pages** (typical novel length). The backend returns `isPageCountEstimate: true` in the response for each book plan:
+
+```json
+{
+  "bookPlanSnapshots": [
+    {
+      "bookEntryId": "61abcdef...",
+      "title": "The Great Gatsby",
+      "pageCount": 300,
+      "isPageCountEstimate": true,
+      "estimatedHours": 16.67,
+      "estimatedDays": 0.69,
+      "estimatedDaysAtDailyReading": 27.78
+    }
+  ]
+}
+```
+
+Your frontend should:
+- Display a visual indicator (e.g., "~16.67 hours estimated based on typical book length") when `isPageCountEstimate` is true
+- Show actual page count when `isPageCountEstimate` is false
+- Allow users to manually override the page count if the estimate seems inaccurate
+- Refresh the plan later when Google Books becomes available to get the actual page count
+
+**When Google Books API is Unavailable (reading test complete):**
+
+`POST /api/reading-tests/{testId}/complete` always returns HTTP **200** regardless of Google Books availability. When the API is unreachable or lacks page count data for a book, the backend applies the 300-page fallback estimate automatically and marks the affected books with `isPageCountEstimate: true`.
+
+Your frontend should:
+- Check `isPageCountEstimate` per book plan and show a UI indicator, e.g.: "~16.67 hours (estimated — page count unavailable)"
+- Inform users they can retry the reading test later once Google Books is restored, to get precise page counts
+
+**Handling Google Books API Outages (book search):**
+
+`GET /api/search` **does** fail hard when Google Books is unreachable — it returns HTTP **503** with error code `GOOGLE_BOOKS_UNAVAILABLE`. Implement exponential backoff retry (1s, 2s, 4s delays) for search requests, and show a user-facing message like "Book search is temporarily unavailable. Please try again shortly."
+
 ### Search Notes
 
 - At least one search parameter is required.
@@ -97,8 +135,8 @@ All API error responses include a `code` field indicating the error type for det
 - `ACTIVE_READING_TEST_EXISTS` – User already has an in-progress reading test
 - `INVALID_READING_TEST_STATE` – Reading test is not in expected state (e.g., not yet completed)
 
-#### Service/Upstream Errors (502, 503)
-- `GOOGLE_BOOKS_UNAVAILABLE` – Google Books API unreachable; check page counts/estimates may be unavailable
+#### Service/Upstream Errors (503)
+- `GOOGLE_BOOKS_UNAVAILABLE` – Google Books API unreachable during book search (`GET /api/search`). Reading test completion is unaffected — page count fallback estimates are applied automatically.
 
 **Error Response Format:**
 ```json

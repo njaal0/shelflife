@@ -3,6 +3,7 @@ package com.shelflife.service;
 import com.shelflife.dto.BookResponse;
 import com.shelflife.dto.PagedResponse;
 import com.shelflife.dto.ReadingTestResponse;
+import com.shelflife.dto.ReadingTestBookPlanResponse;
 import com.shelflife.model.ReadingTest;
 import com.shelflife.model.ReadingTestStatus;
 import com.shelflife.repository.ReadingTestRepository;
@@ -23,6 +24,8 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -122,7 +125,7 @@ class ReadingTestServiceTest {
     }
 
     @Test
-    void completeTest_shouldMapGoogleBooksClientFailureToBadGateway() {
+    void completeTest_shouldUsePageCountFallbackWhenGoogleBooksUnavailable() {
         ReadingTest test = ReadingTest.builder()
                 .id("test-1")
                 .userId("user-1")
@@ -140,42 +143,18 @@ class ReadingTestServiceTest {
 
         when(readingTestRepository.findByIdAndUserId("test-1", "user-1")).thenReturn(Optional.of(test));
         when(bookService.getBookForUser("book-1", "user-1")).thenReturn(book);
-        when(googleBooksService.getPageCount("g-1"))
-                .thenThrow(new RestClientException("upstream unavailable"));
-
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> readingTestService.completeTest("user-1", "test-1", 75, List.of("book-1")));
-
-        assertEquals(502, ex.getStatusCode().value());
-        assertEquals("Google Books page-count lookup failed. Please try again later.", ex.getReason());
-    }
-
-    @Test
-    void completeTest_shouldRejectWhenPageCountIsUnavailable() {
-        ReadingTest test = ReadingTest.builder()
-                .id("test-1")
-                .userId("user-1")
-                .status(ReadingTestStatus.IN_PROGRESS)
-                .promptWordCount(250)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        BookResponse book = BookResponse.builder()
-                .id("book-1")
-                .userId("user-1")
-                .googleBookId("g-1")
-                .title("Unknown Pages")
-                .build();
-
-        when(readingTestRepository.findByIdAndUserId("test-1", "user-1")).thenReturn(Optional.of(test));
-        when(bookService.getBookForUser("book-1", "user-1")).thenReturn(book);
+        // Simulate Google Books API unreachable - returns null gracefully instead of throwing
         when(googleBooksService.getPageCount("g-1")).thenReturn(null);
+        when(readingTestRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> readingTestService.completeTest("user-1", "test-1", 75, List.of("book-1")));
+        ReadingTestResponse response = readingTestService.completeTest("user-1", "test-1", 75, List.of("book-1"));
 
-        assertEquals(400, ex.getStatusCode().value());
-        assertEquals("Unable to determine page count for selected book: Unknown Pages", ex.getReason());
+        // Should succeed with fallback page count (300 pages)
+        assertNotNull(response);
+        assertFalse(response.getBookPlans().isEmpty());
+        // Verify fallback estimate marker is true
+        assertTrue(response.getBookPlans().get(0).getIsPageCountEstimate());
+        assertEquals(300, response.getBookPlans().get(0).getPageCount());
     }
 
     @Test

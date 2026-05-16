@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClientException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
@@ -28,6 +27,7 @@ import java.util.Set;
 public class ReadingTestService {
 
     private static final int WORDS_PER_PAGE = 300;
+    private static final int FALLBACK_PAGE_COUNT = 300;  // Typical novel length (260-350 pages)
     private static final String ACTIVE_TEST_EXISTS_MESSAGE = "An active reading speed test already exists";
     private static final String PROMPT_TEXT = "On a bright morning, Lina stepped out onto the balcony with a notebook, "
         + "a pencil, and a cup of tea. The city below was waking in layers: one bakery lifted its shutters, "
@@ -330,17 +330,13 @@ public class ReadingTestService {
                 "Selected book has no Google volume id for page-count lookup");
         }
 
-        Integer pageCount;
-        try {
-            pageCount = googleBooksService.getPageCount(bookEntry.getGoogleBookId());
-        } catch (RestClientException ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                "Google Books page-count lookup failed. Please try again later.", ex);
-        }
+        Integer pageCount = googleBooksService.getPageCount(bookEntry.getGoogleBookId());
+        boolean isPageCountEstimate = false;
 
+        // Apply fallback estimate if page count unavailable (API returned null or missing)
         if (pageCount == null || pageCount <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                "Unable to determine page count for selected book: " + safeTitle(bookEntry));
+            pageCount = FALLBACK_PAGE_COUNT;
+            isPageCountEstimate = true;
         }
 
         double estimatedHours = roundToTwoDecimals((pageCount * WORDS_PER_PAGE) / wordsPerMinute / 60.0);
@@ -357,6 +353,7 @@ public class ReadingTestService {
             .estimatedHours(estimatedHours)
             .estimatedDays(estimatedDays)
             .estimatedDaysAtDailyReading(estimatedDaysAtDailyReading)
+            .isPageCountEstimate(isPageCountEstimate)
             .build();
         }
 
@@ -397,6 +394,8 @@ public class ReadingTestService {
                     .estimatedHours(plan.getEstimatedHours())
                     .estimatedDays(plan.getEstimatedDays())
                     .estimatedDaysAtDailyReading(plan.getEstimatedDaysAtDailyReading())
+                    // Null-safe: pre-Phase-4 MongoDB documents have no isPageCountEstimate field
+                    .isPageCountEstimate(Boolean.TRUE.equals(plan.getIsPageCountEstimate()))
                     .build())
                 .toList())
             .totalEstimatedHours(test.getTotalEstimatedHours())

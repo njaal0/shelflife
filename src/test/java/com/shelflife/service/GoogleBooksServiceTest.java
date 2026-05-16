@@ -13,6 +13,7 @@ import java.util.List;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
@@ -113,6 +114,71 @@ class GoogleBooksServiceTest {
 
         assertEquals(503, ex.getStatusCode().value());
         assertEquals("Book search is temporarily unavailable. Please try again later.", ex.getReason());
+        server.verify();
+    }
+
+    @Test
+    void getPageCount_shouldReturnPageCountWhenApiSucceeds() {
+        GoogleBooksService service = new GoogleBooksService(new RestTemplateBuilder(), "");
+        RestTemplate restTemplate = (RestTemplate) ReflectionTestUtils.getField(service, "restTemplate");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+
+        String response = """
+                {
+                  "volumeInfo": {
+                    "title": "Clean Code",
+                    "pageCount": 464
+                  }
+                }
+                """;
+
+        server.expect(requestTo(containsString("/volumes/vol-abc")))
+                .andRespond(withSuccess(response, MediaType.APPLICATION_JSON));
+
+        Integer result = service.getPageCount("vol-abc");
+
+        assertEquals(464, result);
+        server.verify();
+    }
+
+    @Test
+    void getPageCount_shouldReturnNullWhenApiIsUnreachable() {
+        GoogleBooksService service = new GoogleBooksService(new RestTemplateBuilder(), "");
+        RestTemplate restTemplate = (RestTemplate) ReflectionTestUtils.getField(service, "restTemplate");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+
+        // Server error simulates unreachable API (5xx or network failure mapped by RestTemplate)
+        server.expect(requestTo(containsString("/volumes/vol-unreachable")))
+                .andRespond(withServerError());
+
+        // Phase 4: must not throw — caller applies fallback estimate instead
+        Integer result = service.getPageCount("vol-unreachable");
+
+        assertNull(result);
+        server.verify();
+    }
+
+    @Test
+    void getPageCount_shouldReturnNullWhenPageCountFieldMissingFromResponse() {
+        GoogleBooksService service = new GoogleBooksService(new RestTemplateBuilder(), "");
+        RestTemplate restTemplate = (RestTemplate) ReflectionTestUtils.getField(service, "restTemplate");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+
+        // Google Books returns volume info but no pageCount field
+        String response = """
+                {
+                  "volumeInfo": {
+                    "title": "No Page Count Book"
+                  }
+                }
+                """;
+
+        server.expect(requestTo(containsString("/volumes/vol-no-pages")))
+                .andRespond(withSuccess(response, MediaType.APPLICATION_JSON));
+
+        Integer result = service.getPageCount("vol-no-pages");
+
+        assertNull(result);
         server.verify();
     }
 }
