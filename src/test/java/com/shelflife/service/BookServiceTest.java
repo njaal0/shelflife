@@ -1,7 +1,8 @@
 package com.shelflife.service;
 
-import com.shelflife.dto.BookRequest;
+import com.shelflife.dto.BookCreateRequest;
 import com.shelflife.dto.BookResponse;
+import com.shelflife.dto.BookUpdateRequest;
 import com.shelflife.model.BookEntry;
 import com.shelflife.repository.BookEntryRepository;
 import org.junit.jupiter.api.Test;
@@ -32,7 +33,7 @@ class BookServiceTest {
 
     @Test
     void createBook_shouldCreateBookEntry() {
-        BookRequest request = BookRequest.builder()
+        BookCreateRequest request = BookCreateRequest.builder()
                 .googleBookId("book-1")
                                 .isbn("978-0134685991")
                 .title("Test Book")
@@ -61,7 +62,7 @@ class BookServiceTest {
                 .shelf("reading")
                 .build();
 
-        BookRequest request = BookRequest.builder()
+        BookUpdateRequest request = BookUpdateRequest.builder()
                 .isbn("978-0132350884")
                 .build();
 
@@ -76,7 +77,7 @@ class BookServiceTest {
 
     @Test
     void createBook_shouldRejectInvalidIsbn() {
-        BookRequest request = BookRequest.builder()
+        BookCreateRequest request = BookCreateRequest.builder()
                 .title("Bad isbn")
                 .shelf("reading")
                 .isbn("invalid")
@@ -99,7 +100,7 @@ class BookServiceTest {
                 .shelf("reading")
                 .build();
 
-        BookRequest request = BookRequest.builder()
+        BookUpdateRequest request = BookUpdateRequest.builder()
                 .isbn("   ")
                 .build();
 
@@ -137,7 +138,7 @@ class BookServiceTest {
 
     @Test
     void createBook_shouldValidateShelf() {
-        BookRequest request = BookRequest.builder()
+        BookCreateRequest request = BookCreateRequest.builder()
                 .title("Bad shelf")
                 .shelf("invalid")
                 .build();
@@ -152,7 +153,7 @@ class BookServiceTest {
 
     @Test
     void createBook_shouldAcceptMaxRating() {
-        BookRequest request = BookRequest.builder()
+        BookCreateRequest request = BookCreateRequest.builder()
                 .googleBookId("book-2")
                 .title("Dice Book")
                 .shelf("finished")
@@ -168,7 +169,7 @@ class BookServiceTest {
 
     @Test
     void createBook_shouldRejectRatingAboveSix() {
-        BookRequest request = BookRequest.builder()
+        BookCreateRequest request = BookCreateRequest.builder()
                 .title("Over rated")
                 .shelf("finished")
                 .rating(7)
@@ -199,7 +200,7 @@ class BookServiceTest {
 
     @Test
     void createBook_shouldRejectDuplicateByIsbn() {
-        BookRequest request = BookRequest.builder()
+        BookCreateRequest request = BookCreateRequest.builder()
                 .title("Duplicate Book")
                 .shelf("reading")
                 .isbn("9780134685991")
@@ -218,7 +219,7 @@ class BookServiceTest {
 
     @Test
     void createBook_shouldRejectDuplicateByGoogleBookId() {
-        BookRequest request = BookRequest.builder()
+        BookCreateRequest request = BookCreateRequest.builder()
                 .title("Duplicate Book")
                 .shelf("reading")
                 .googleBookId("book-1")

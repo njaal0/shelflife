@@ -14,14 +14,14 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Request payload for creating or updating a saved book entry.
+ * Request payload for creating a new saved book entry.
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Schema(description = "Request payload for creating or updating a saved book entry.")
-public class BookRequest {
+@Schema(description = "Request payload for creating a new saved book entry.")
+public class BookCreateRequest {
 
     @Schema(description = "Google Books volume identifier.", example = "NggnmAEACAAJ")
     private String googleBookId;

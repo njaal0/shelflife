@@ -1,7 +1,8 @@
 package com.shelflife.service;
 
-import com.shelflife.dto.BookRequest;
+import com.shelflife.dto.BookCreateRequest;
 import com.shelflife.dto.BookResponse;
+import com.shelflife.dto.BookUpdateRequest;
 import com.shelflife.dto.PagedResponse;
 import com.shelflife.model.BookEntry;
 import com.shelflife.repository.BookEntryRepository;
@@ -82,7 +83,7 @@ public class BookService {
      * @param request book creation payload
      * @return saved book response payload
      */
-    public BookResponse createBook(String userId, BookRequest request) {
+    public BookResponse createBook(String userId, BookCreateRequest request) {
         userService.assertUserExists(userId);
         validateShelf(request.getShelf());
         validateRating(request.getRating());
@@ -116,7 +117,7 @@ public class BookService {
      * @param request partial update payload
      * @return updated book response payload
      */
-    public BookResponse updateBook(String id, String userId, BookRequest request) {
+    public BookResponse updateBook(String id, String userId, BookUpdateRequest request) {
         userService.assertUserExists(userId);
         BookEntry existing = bookEntryRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Book entry not found"));

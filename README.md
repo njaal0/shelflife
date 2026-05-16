@@ -65,6 +65,16 @@ The complete/daily-plan responses include:
 - If `isbn` is provided, the backend uses ISBN-only search mode.
 - ISBN accepts ISBN-10 or ISBN-13 formats (hyphens/spaces allowed).
 
+### Book Create/Update Contract
+
+- `POST /api/books` (create) requires:
+   - `title` (non-blank)
+   - `shelf` (`reading`, `finished`, `want-to-read`)
+- `PUT /api/books/{id}` (update) is a partial update endpoint:
+   - all request fields are optional
+   - supported mutable fields: `isbn`, `shelf`, `rating`, `notes`, `startedAt`, `finishedAt`
+- `rating` must be between `1` and `6` when provided.
+
 ### Authentication
 
 - Search endpoint is public.

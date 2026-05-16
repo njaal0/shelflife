@@ -176,13 +176,13 @@ class ApiAccessControlIntegrationTest {
         mockMvc.perform(put("/api/books/book-1")
                         .header("Authorization", "Bearer owner-user")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"shelf\":\"finished\",\"title\":\"Updated Book\"}"))
+                        .content("{\"shelf\":\"finished\"}"))
                 .andExpect(status().isOk());
 
         mockMvc.perform(put("/api/books/book-1")
                         .header("Authorization", "Bearer other-user")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"shelf\":\"finished\",\"title\":\"Updated Book\"}"))
+                        .content("{\"shelf\":\"finished\"}"))
                 .andExpect(status().isNotFound());
 
         verify(bookService).updateBook(eq("book-1"), eq("owner-user"), any());

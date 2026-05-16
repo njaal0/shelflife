@@ -1,7 +1,8 @@
 package com.shelflife.controller;
 
-import com.shelflife.dto.BookRequest;
+import com.shelflife.dto.BookCreateRequest;
 import com.shelflife.dto.BookResponse;
+import com.shelflife.dto.BookUpdateRequest;
 import com.shelflife.dto.PagedResponse;
 import com.shelflife.service.BookService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -50,25 +51,25 @@ public class BookController {
         return bookService.getBooksForUserByShelf(getUserId(authentication), shelf, page, size);
     }
 
-    @Operation(summary = "Save a book", description = "Adds a new book to the authenticated user's shelf.")
+    @Operation(summary = "Save a book", description = "Adds a new book to the authenticated user's shelf. Title and shelf are required.")
     @ApiResponse(responseCode = "201", description = "Book created")
     @ApiResponse(responseCode = "400", description = "Validation error or invalid shelf/rating/ISBN", content = @Content(schema = @Schema(ref = "#/components/schemas/ErrorResponse")))
     @ApiResponse(responseCode = "401", description = "Missing or invalid bearer token", content = @Content(schema = @Schema(ref = "#/components/schemas/ErrorResponse")))
     @ApiResponse(responseCode = "409", description = "Book already on shelf", content = @Content(schema = @Schema(ref = "#/components/schemas/ErrorResponse")))
     @PostMapping("/books")
     @ResponseStatus(HttpStatus.CREATED)
-    public BookResponse createBook(@Valid @RequestBody BookRequest request, Authentication authentication) {
+    public BookResponse createBook(@Valid @RequestBody BookCreateRequest request, Authentication authentication) {
         return bookService.createBook(getUserId(authentication), request);
     }
 
-    @Operation(summary = "Update a saved book", description = "Applies partial updates (shelf, rating, notes, dates, ISBN) to a saved book entry.")
+    @Operation(summary = "Update a saved book", description = "Applies partial updates (shelf, rating, notes, dates, ISBN) to a saved book entry. All request fields are optional.")
     @ApiResponse(responseCode = "200", description = "Book updated")
     @ApiResponse(responseCode = "400", description = "Validation error", content = @Content(schema = @Schema(ref = "#/components/schemas/ErrorResponse")))
     @ApiResponse(responseCode = "401", description = "Missing or invalid bearer token", content = @Content(schema = @Schema(ref = "#/components/schemas/ErrorResponse")))
     @ApiResponse(responseCode = "404", description = "Book not found", content = @Content(schema = @Schema(ref = "#/components/schemas/ErrorResponse")))
     @PutMapping("/books/{id}")
     public BookResponse updateBook(@PathVariable String id,
-                                   @Valid @RequestBody BookRequest request,
+                                   @Valid @RequestBody BookUpdateRequest request,
                                    Authentication authentication) {
         return bookService.updateBook(id, getUserId(authentication), request);
     }
