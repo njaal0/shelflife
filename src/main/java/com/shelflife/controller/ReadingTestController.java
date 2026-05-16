@@ -6,6 +6,7 @@ import com.shelflife.dto.ReadingTestResponse;
 import com.shelflife.dto.PagedResponse;
 import com.shelflife.model.ReadingTestStatus;
 import com.shelflife.service.ReadingTestService;
+import com.shelflife.util.PaginationValidator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -149,6 +150,7 @@ public class ReadingTestController {
             @Parameter(description = "Maximum results per page") @RequestParam(defaultValue = "20") int size,
             Authentication authentication
     ) {
+        PaginationValidator.validatePageAndSize(page, size);
         return readingTestService.listTestsForUser(authentication.getName(), status, from, to, page, size);
     }
 }

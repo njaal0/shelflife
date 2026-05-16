@@ -5,6 +5,7 @@ import com.shelflife.dto.BookResponse;
 import com.shelflife.dto.BookUpdateRequest;
 import com.shelflife.dto.PagedResponse;
 import com.shelflife.service.BookService;
+import com.shelflife.util.PaginationValidator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -35,6 +36,7 @@ public class BookController {
             @Parameter(description = "Zero-based page index") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Maximum results per page") @RequestParam(defaultValue = "20") int size,
             Authentication authentication) {
+        PaginationValidator.validatePageAndSize(page, size);
         return bookService.getBooksForUser(getUserId(authentication), page, size);
     }
 
@@ -48,6 +50,7 @@ public class BookController {
             @Parameter(description = "Zero-based page index") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Maximum results per page") @RequestParam(defaultValue = "20") int size,
             Authentication authentication) {
+        PaginationValidator.validatePageAndSize(page, size);
         return bookService.getBooksForUserByShelf(getUserId(authentication), shelf, page, size);
     }
 

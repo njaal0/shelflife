@@ -75,6 +75,40 @@ The complete/daily-plan responses include:
    - supported mutable fields: `isbn`, `shelf`, `rating`, `notes`, `startedAt`, `finishedAt`
 - `rating` must be between `1` and `6` when provided.
 
+### Error Codes
+
+All API error responses include a `code` field indicating the error type for deterministic frontend handling. Common error codes:
+
+#### Validation Errors (400)
+- `VALIDATION_ERROR` – Request body validation failed (e.g., required field missing, invalid format)
+- `INVALID_PAGINATION_PARAMS` – Page or size parameter out of valid range (page >= 0, 0 < size <= 100)
+- `INVALID_SHELF` – Shelf name not in [`reading`, `finished`, `want-to-read`]
+- `INVALID_RATING` – Rating not in range 1–6
+- `INVALID_ISBN` – ISBN format invalid or normalization failed
+- `INVALID_DATE_RANGE` – Date range filter invalid (e.g., `from` after `to`)
+
+#### Not Found Errors (404)
+- `USER_NOT_FOUND` – Authenticated user not found (indicates deleted user or DB issue)
+- `BOOK_NOT_FOUND` – Requested book entry not found for authenticated user
+- `READING_TEST_NOT_FOUND` – Requested reading test not found for authenticated user
+
+#### Conflict Errors (409)
+- `BOOK_ALREADY_ON_SHELF` – Book (by ISBN or Google Books ID) already saved on user's shelf
+- `ACTIVE_READING_TEST_EXISTS` – User already has an in-progress reading test
+- `INVALID_READING_TEST_STATE` – Reading test is not in expected state (e.g., not yet completed)
+
+#### Service/Upstream Errors (502, 503)
+- `GOOGLE_BOOKS_UNAVAILABLE` – Google Books API unreachable; check page counts/estimates may be unavailable
+
+**Error Response Format:**
+```json
+{
+  "code": "INVALID_PAGINATION_PARAMS",
+  "message": "Page index must be >= 0, got -1",
+  "timestamp": "2026-05-16T10:30:00"
+}
+```
+
 ### Authentication
 
 - Search endpoint is public.

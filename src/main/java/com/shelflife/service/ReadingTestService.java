@@ -240,7 +240,7 @@ public class ReadingTestService {
 
         if (from != null && to != null && from.isAfter(to)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "from must be on or before to");
+                    "date range: from must be on or before to");
         }
 
         List<ReadingTest> tests = fetchTests(userId, status);
@@ -250,10 +250,20 @@ public class ReadingTestService {
                 .toList();
 
         long totalElements = filtered.size();
-        int totalPages = size > 0 ? (int) Math.ceil((double) totalElements / size) : 1;
-        int fromIndex = Math.min(page * size, filtered.size());
-        int toIndex = Math.min(fromIndex + size, filtered.size());
-        List<ReadingTestResponse> pageContent = filtered.subList(fromIndex, toIndex);
+        int totalPages = totalElements == 0 ? 1 : (int) Math.ceil((double) totalElements / size);
+
+        // Safe pagination: calculate bounds and handle out-of-bounds pages
+        int fromIndex = page * size;
+        int toIndex = fromIndex + size;
+
+        List<ReadingTestResponse> pageContent;
+        if (fromIndex >= filtered.size()) {
+            // Page is beyond available data; return empty list
+            pageContent = List.of();
+        } else {
+            // Safe to take sublist (toIndex is clamped by subList contract)
+            pageContent = filtered.subList(fromIndex, Math.min(toIndex, filtered.size()));
+        }
 
         return PagedResponse.<ReadingTestResponse>builder()
                 .content(pageContent)
